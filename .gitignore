@@ -1,4 +1,4 @@
-/private/
-/venv/
+/src/private/
+/src/venv/
 .idea
 __pycache__
