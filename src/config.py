@@ -23,9 +23,9 @@ import yt_dlp
 
 # Runtime
 
-CONFIG_PATH = "./private/config.json"
-DATABASE_PATH = "./private/jukebox.db"
-TEMP_DIR = "./private/temp"
+CONFIG_PATH = "/private/config.json"
+DATABASE_PATH = "/private/jukebox.db"
+TEMP_DIR = "/private/temp"
 
 # Bot
 
