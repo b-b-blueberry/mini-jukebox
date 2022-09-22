@@ -123,6 +123,9 @@ class Vote:
 
 
 class Commands(commands.Cog, name=config.COG_COMMANDS):
+    # Values
+
+    is_blocking_commands = False
 
     # Constants
 
@@ -675,6 +678,26 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.id))
         self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
+
+    @commands.command(name="block", aliases=["b"])
+    @commands.check(is_admin)
+    async def block_commands(self, ctx: Context):
+        print("Blocking commands. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        Commands.is_blocking_commands = True
+        await ctx.message.add_reaction(strings.emoji_lock_on)
+
+    @commands.command(name="unblock", aliases=["n"])
+    @commands.check(is_admin)
+    async def unblock_commands(self, ctx: Context):
+        print("Unblocking commands. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        Commands.is_blocking_commands = False
+        await ctx.message.add_reaction(strings.emoji_lock_off)
 
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)

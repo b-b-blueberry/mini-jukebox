@@ -74,8 +74,11 @@ class MusicBot(Bot):
         msg = None
         reaction = None
         try:
-            if isinstance(error, commands.errors.CommandNotFound):
-                # Ignore failed command calls
+            if isinstance(error, commands.CheckFailure):
+                # Suppress failed command checks
+                reaction = strings.emoji_error
+            elif isinstance(error, commands.errors.CommandNotFound):
+                # Suppress failed command calls
                 reaction = strings.emoji_question
             elif isinstance(error, commands.errors.BadArgument):
                 # Suppress failed command parameters
@@ -145,9 +148,18 @@ async def on_ready():
 
 @bot.check
 async def is_valid_command_use(ctx: Context) -> bool:
-    # Ignore commands outside the expected channel (except admin commands used by admins), or commands from bots
-    return not ctx.author.bot \
-        and (ctx.channel.id == config.CHANNEL_TEXT or (is_admin in ctx.command.checks and await is_admin(ctx=ctx, send_message=False)))
+    # Ignore commands from bots
+    is_not_bot: bool = not ctx.author.bot
+
+    # Ignore commands from channels other than the designated text channel (except admin commands used by admins)
+    is_channel_ok: bool = ctx.channel.id == config.CHANNEL_TEXT \
+        or (is_admin in ctx.command.checks and await is_admin(ctx=ctx, send_message=False))
+
+    # Ignore commands while commands are blocked (except commands used by admins)
+    is_not_blocked: bool = not bot.get_cog(config.COG_COMMANDS).is_blocking_commands \
+        or await is_admin(ctx=ctx, send_message=False)
+
+    return is_not_bot and is_channel_ok and is_not_blocked
 
 
 # Startup
