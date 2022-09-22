@@ -35,6 +35,9 @@ PACKAGE_COMMANDS = "jukebox_commands"
 with open(file=CONFIG_PATH, mode="r") as config_file:
     cfg = json.load(config_file)
 
+# Tokens
+TOKEN_LYRICS = cfg["tokens"]["azlyrics"]
+
 # Discord
 
 DISCORD_TOKEN = cfg["discord"]["token"]

@@ -494,29 +494,30 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     async def lyrics(self, ctx: Context, *, query: str = None):
         msg = None
         embed = None
-        # Number queries are treated as a search by index
+        queue = jukebox.queue
         if query and query.isdigit():
+            # Number queries are treated as a search by index
             index = int(query)
             # Treat user search queries as 1-indexed
-            if len(jukebox.queue) < index:
+            if len(queue) < index or index < 1:
                 raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
-            query = jukebox.queue[index - 1].title
+            query = queue[index - 1].title
         async with ctx.typing():
             if not query:
-                if not any(jukebox.queue):
-                    emoji = await commands.EmojiConverter().convert(ctx=ctx, argument=strings.get("emoji_id_record"))
+                if not any(queue):
+                    emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                     msg = strings.get("jukebox_empty").format(emoji)
                 else:
                     query = jukebox.current_track().title
             if not msg:
-                query_url = "https://search.azlyrics.com/search.php?q={0}".format(query)
+                query_url = "https://search.azlyrics.com/search.php?q={0}&x={1}".format(query, config.TOKEN_LYRICS)
                 timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
                 result_url = None
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url=query_url, timeout=timeout) as response:
                         if response.status != 200:
                             msg = strings.get("error_http_status_code").format(
-                                response.status)
+                                f"{response.status} {responses[response.status]}")
                         else:
                             try:
                                 html_text = await response.text()
@@ -531,9 +532,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         msg = strings.get("error_lyrics_not_found").format(query)
                     else:
                         async with session.get(url=result_url, timeout=timeout) as response:
-                            if response.status != 200:
+                            if not response.ok:
                                 msg = strings.get("error_http_status_code").format(
-                                    response.status)
+                                    f"{response.status} {responses[response.status]}")
                             else:
                                 html_text = await response.text()
                                 html = BeautifulSoup(markup=html_text, features="html.parser")
@@ -546,7 +547,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 text = text[:1750] + "..." \
                                     if len(text) > 1750 \
                                     else text
-                                emoji = await commands.EmojiConverter().convert(ctx=ctx, argument=strings.get("emoji_id_record"))
+                                emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                                 embed = discord.Embed(
                                     title=title,
                                     description=text,
@@ -556,7 +557,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                     .set_author(name=header) \
                                     .set_footer(
                                         text=response.url.host,
-                                        icon_url="https://www.azlyrics.com/az_logo_tr.png") \
+                                        icon_url="https://images.azlyrics.com/az_logo_tr.png") \
                                     .set_thumbnail(url=emoji.url)
 
             if msg or embed:
