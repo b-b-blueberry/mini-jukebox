@@ -37,8 +37,15 @@ with open(file=CONFIG_PATH, mode="r") as config_file:
 
 # Discord
 
-DISCORD_INTENTS: discord.Intents = discord.Intents(**{flag: True for flag in cfg["discord"]["intents"]})
 DISCORD_TOKEN = cfg["discord"]["token"]
+DISCORD_INTENTS: discord.Intents = discord.Intents(
+    guilds=True,
+    guild_messages=True,
+    guild_reactions=True,
+    members=True,
+    emojis=True,
+    voice_states=True
+)
 
 COMMAND_PREFIX = cfg["discord"]["command_prefix"]
 
