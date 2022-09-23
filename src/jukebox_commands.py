@@ -581,7 +581,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg = strings.get("jukebox_shuffled").format(
                     jukebox.current_track().title,
                     shuffle_count,
-                    strings.emoji_refresh)
+                    strings.emoji_shuffle)
             if msg:
                 await ctx.reply(content=msg)
 
