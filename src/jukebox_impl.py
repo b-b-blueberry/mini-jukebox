@@ -19,7 +19,8 @@ Contents:
 import asyncio
 import os
 import shutil
-from typing import Union
+from asyncio import AbstractEventLoop
+from typing import Union, List, Optional
 
 import discord
 import random
@@ -36,26 +37,35 @@ class YTDLSource(discord.PCMVolumeTransformer):
     async def get_playlist_info(cls, query, *, loop=None):
         if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
             print("Query: {0}".format(query))
+
         loop = loop or asyncio.get_event_loop()
+
         # Process and download track metadata where available
-        entries = None
-        playlist_title = None
-        response_url = None
+        playlist_info: List[dict] = []
+        playlist_title: Optional[str] = None
+        response_url: Optional[str] = None
+        num_failed: int = 0
+        response: dict = None
         response = await loop.run_in_executor(
             executor=None,
             func=lambda: ytdlconn.extract_info(
                 url=query,
                 download=not config.PLAYLIST_STREAMING))
         if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
-            response_url = None if not response or any(not entry for entry in response.get("entries", [])) \
+            response_url = None if not response \
                             else response.get("url") if "url" in response.keys() \
-                            else response.get("entries")[0].get("url")
+                            else response.get("entries")[0].get("url") \
+                            if any(response.get("entries")) \
+                            else None
             print("Reply: {0}".format(response_url))
         if response:
             playlist_title = response.get("title") if "title" in response else None
             # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
-            entries = response.get("entries") if "entries" in response else [response]
-        return entries, playlist_title, response_url
+            playlist_info = response.get("entries") if "entries" in response else [response]
+            # Trim out failed downloads from the playlist
+            num_failed = sum(not entry for entry in playlist_info)
+            playlist_info = [entry for entry in playlist_info if entry]
+        return playlist_info, playlist_title, response_url, num_failed
 
     @classmethod
     async def get_playlist_files(cls, playlist_info, is_streaming: bool, added_by):
@@ -92,7 +102,8 @@ class JukeboxItem:
 class Jukebox:
     def __init__(self):
         _clear_temp_folders()
-        self.queue = []
+        self._multiqueue: List[List[JukeboxItem]] = []
+        self._multiqueue_index: int = 0
         self.bot: commands.Bot = None
         self.voice_client: discord.VoiceClient = None
         self.is_repeating: bool = False
@@ -100,33 +111,140 @@ class Jukebox:
 
     # Queue managers
 
-    def append(self, item: JukeboxItem):
-        self.queue.append(item)
+    def get_all(self) -> List[JukeboxItem]:
+        return sum(self._multiqueue, [])
 
-    def remove(self, index: int, is_deleting: bool, from_after_play: bool = False) -> Union[JukeboxItem, None]:
-        removed_item = None
+    def get_queue(self, user_id: int = None) -> List[JukeboxItem]:
+        if not any(self._multiqueue):
+            return []
+
+        if not config.PLAYLIST_MULTIQUEUE:
+            # Return the base queue
+            return self._multiqueue[0]
+
+        if user_id:
+            # For multiqueue, fetch matching queue for a given user
+            for queue in self._multiqueue:
+                if any(queue) and queue[0].added_by.id == user_id:
+                    return queue
+
+        # Return matching queue in multiqueue if one exists
+        return self._multiqueue[self._multiqueue_index] if len(self._multiqueue) >= self._multiqueue_index else []
+
+    def get_range(self, index_start: int, index_end: int) -> List[JukeboxItem]:
+        if not config.PLAYLIST_MULTIQUEUE:
+            # Return items from a range in the queue
+            queue: List[JukeboxItem] = self.get_queue()
+            # Clamp to range of elements in queue
+            index_start: int = max(0, index_start)
+            index_end: int = min(len(queue), index_end)
+            return queue[index_start:index_end]
+
+        # For multiqueue, fetch items in row-major traversal (one item per queue per iter) of queues
+        items: List[JukeboxItem] = []
+        x_max: int = len(self._multiqueue)
+        y_max: int = max(len(queue) for queue in self._multiqueue)
+        # Clamp to range of elements in multiqueue
+        index_start: int = max(0, index_start)
+        index_end: int = min(sum(len(queue) for queue in self._multiqueue), index_end)
+        index_counter: int = 0
+        for y in range(0, y_max):
+            for x in range(0, x_max):
+                if y >= len(self._multiqueue[x]):
+                    continue
+                if index_counter >= index_end:
+                    return items
+                if index_counter >= index_start:
+                    items.append(self._multiqueue[x][y])
+                index_counter += 1
+        return items
+
+    def get_item_by_index(self, index: int) -> Optional[JukeboxItem]:
+        if not any(self._multiqueue):
+            return None
+
+        if not config.PLAYLIST_MULTIQUEUE:
+            # Return item by index in the queue
+            return self._multiqueue[0][index] if any(self._multiqueue) and 0 <= index < len(self._multiqueue) else None
+
+        # For multiqueue, return item by index in row-major traversal (one item per queue per iter) of queues
+        x_max: int = len(self._multiqueue)
+        y_max: int = max([len(queue) for queue in self._multiqueue])
+        index_counter: int = 0
+        for y in range(0, y_max):
+            for x in range(0, x_max):
+                if y >= len(self._multiqueue[x]):
+                    continue
+                if index == index_counter:
+                    return self._multiqueue[x][y]
+                index_counter += 1
+
+    def get_index_of_item(self, item: JukeboxItem) -> int:
+        if not any(self._multiqueue):
+            return -1
+
+        if not config.PLAYLIST_MULTIQUEUE:
+            # Return index of item in the queue
+            return self._multiqueue[0].index(item)
+
+        # For multiqueue, return index of item in row-major traversal (one item per queue per iter) of queues
+        x_max: int = len(self._multiqueue)
+        y_max: int = max([len(queue) for queue in self._multiqueue])
+        index_counter: int = 0
+        for y in range(0, y_max):
+            for x in range(0, x_max):
+                if y >= len(self._multiqueue[x]):
+                    continue
+                if self._multiqueue[x][y] == item:
+                    return index_counter
+                index_counter += 1
+
+        return -1
+
+    def append(self, item: JukeboxItem) -> None:
+        if config.PLAYLIST_MULTIQUEUE:
+            if not any(any(queue) and queue[0].added_by == item.added_by for queue in self._multiqueue):
+                # Create queue for user in multiqueue if none exists
+                self._multiqueue.append([item])
+            else:
+                # Append to existing user queue
+                self.get_queue(item.added_by.id).append(item)
+        else:
+            if not any(self._multiqueue) or not any(self._multiqueue[0]):
+                # For multiqueue, create queue if none exists
+                self._multiqueue.append([item])
+            else:
+                # Append to existing queue in multiqueue
+                self.get_queue(item.added_by.id).append(item)
+
+    def remove(self, item: JukeboxItem, is_deleting: bool, from_after_play: bool = False) -> None:
         try:
-            if not any(self.queue) or index < 0 or index >= len(self.queue):
-                # Ignore invalid uses
-                pass
-            elif index > 0 or from_after_play or not self.voice_client or not self.voice_client.is_playing():
-                # Remove the item from the queue
-                removed_item = self.queue.pop(index)
+            queue: List[JukeboxItem] = self.get_queue(item.added_by.id)
+            if from_after_play or not self.voice_client or not self.voice_client.is_playing():
+                # Remove tracks not currently being played
+                queue.remove(item)
                 # Remove downloaded audio files from disk
                 if is_deleting and not config.PLAYLIST_STREAMING:
-                    os.remove(removed_item.link)
+                    os.remove(item.source)
             else:
+                # Remove the currently-playing track from the queue
                 # Stop the voice client if playing, triggering self._after_play
                 self.stop()
-                # Return the queue item which will be removed for real from self._after_play
-                removed_item = self.queue[index]
+            # Remove the item's queue from the multiqueue if empty
+            if not any(queue):
+                if self._multiqueue.index(queue) < self._multiqueue_index:
+                    # Adjust queue index when removing a queue with a lower index than the current
+                    self._multiqueue_index -= 1
+                self._multiqueue.remove(queue)
         except FileNotFoundError as error:
             err.log(error)
-        finally:
-            return removed_item
 
     def play(self):
-        if any(self.queue) and self.voice_client and not self.voice_client.is_playing():
+        # Reset index to default if out of bounds
+        if self._multiqueue_index < 0 or self._multiqueue_index >= len(self._multiqueue):
+            self._multiqueue_index = 0
+        # Play or resume the jukebox queue
+        if any(self.get_queue()) and self.voice_client and not self.voice_client.is_playing():
             if not self.voice_client.is_paused():
                 self.voice_client.play(
                     source=self.current_track().audio_from_source(),
@@ -147,13 +265,29 @@ class Jukebox:
 
     def clear(self):
         _clear_temp_folders()
-        self.queue.clear()
+        # Clear any and all queues in the multiqueue
+        for queue in self._multiqueue:
+            queue.clear()
+        self._multiqueue.clear()
         self.stop()
 
-    def shuffle(self) -> int:
-        self.stop()
-        random.shuffle(self.queue)
-        return len(self.queue)
+    def remove_many(self, tracks: List[JukeboxItem]) -> None:
+        for track in tracks:
+            self.remove(
+                item=track,
+                is_deleting=True)
+
+    def shuffle(self, user_id: int) -> int:
+        if config.PLAYLIST_MULTIQUEUE:
+            current: JukeboxItem = self.current_track()
+            if current and current.added_by == user_id:
+                # Stop (but don't remove) the currently-playing track when shuffling a user's currently-playing queue
+                self.stop()
+
+        # Shuffle the queue in-place
+        queue: List[JukeboxItem] = self.get_queue(user_id=user_id)
+        random.shuffle(queue)
+        return len(queue)
 
     def repeat(self) -> bool:
         self.is_repeating = not self.is_repeating
@@ -165,27 +299,32 @@ class Jukebox:
         if error:
             err.log(error)
 
-        current = self.remove(
-            index=0,
-            is_deleting=self.is_repeating,
+        # Remove the just-played track from the queue
+        current: JukeboxItem = self.current_track()
+        self.remove(
+            item=current,
+            is_deleting=not self.is_repeating,
             from_after_play=True)
+
+        # Repeat playlist by re-appending items after removal
+        if current and self.is_repeating:
+            self.append(current)
 
         if config.LOGGING_CONSOLE:
             print("After: {0}".format(current.title))
 
-        # Repeat playlist by re-appending items after removal
-        if self.is_repeating and current:
-            self.append(current)
-        # Continue to the next track
-        if any(self.queue):
-            self.play()
+        if config.PLAYLIST_MULTIQUEUE and self._multiqueue_index < len(self._multiqueue) - 1:
+            # Go to the next item in the multiqueue
+            self._multiqueue_index += 1
+
+        # Play the next item in the queue
+        self.play()
+
         # Do user-facing after-play behaviour
         if self.on_track_end_func and self.bot:
+            # Run async bot funcs
             future = asyncio.run_coroutine_threadsafe(self.on_track_end_func(), self.bot.loop)
-            try:
-                future.result(timeout=config.CORO_TIMEOUT)
-            except Exception as e:
-                err.log(e)
+            future.result(timeout=config.CORO_TIMEOUT)
 
     # Queue utilities
 
@@ -198,8 +337,15 @@ class Jukebox:
     def num_listeners(self) -> int:
         return len(self.voice_client.channel.members) - 1 if self.is_in_voice_channel() else 0
 
-    def current_track(self) -> Union[JukeboxItem, None]:
-        return self.queue[0] if any(self.queue) else None
+    def current_track(self) -> Optional[JukeboxItem]:
+        queue: List[JukeboxItem] = self.get_queue()
+        return queue[0] if any(queue) else None
+
+    def num_tracks(self) -> int:
+        return sum(len(queue) for queue in self._multiqueue)
+
+    def is_empty(self) -> bool:
+        return all(not any(queue) for queue in self._multiqueue)
 
 
 # Utility functions
