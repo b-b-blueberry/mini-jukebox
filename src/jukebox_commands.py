@@ -636,6 +636,16 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Admin commands
 
+    @commands.command(name="refresh", aliases=["z"])
+    @commands.check(is_admin)
+    async def refresh_commands(self, ctx: Context) -> None:
+        print("Refreshing commands. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
+        await ctx.message.add_reaction(strings.emoji_confirm)
+
     @commands.command(name="exit", aliases=["x"])
     @commands.check(is_admin)
     async def exit(self, ctx: Context):
@@ -670,16 +680,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await Vote.clear_votes()
         await ctx.message.add_reaction(strings.emoji_confirm)
 
-    @commands.command(name="refresh", aliases=["z"])
-    @commands.check(is_admin)
-    async def refresh_commands(self, ctx: Context):
-        print("Refreshing commands. [{0}#{1} ({2})]".format(
-            ctx.author.name,
-            ctx.author.discriminator,
-            ctx.author.id))
-        self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
-        await ctx.message.add_reaction(strings.emoji_confirm)
-
     @commands.command(name="block", aliases=["b"])
     @commands.check(is_admin)
     async def block_commands(self, ctx: Context):
@@ -699,6 +699,15 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.id))
         Commands.is_blocking_commands = False
         await ctx.message.add_reaction(strings.emoji_lock_off)
+
+    @commands.command(name="mango", aliases=["m"])
+    @commands.check(is_admin)
+    async def activate_mango(self, ctx: Context) -> None:
+        print("Activating mango. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        await ctx.message.add_reaction(strings.emoji_mango)
 
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
