@@ -7,6 +7,7 @@
 Contents:
     Runtime
     Bot
+    Tokens
     Discord
     HTTP
     FFMPEG
@@ -20,6 +21,7 @@ import json
 
 import discord
 import yt_dlp
+
 
 # Runtime
 
@@ -46,6 +48,7 @@ DISCORD_INTENTS: discord.Intents = discord.Intents(
     guilds=True,
     guild_messages=True,
     guild_reactions=True,
+    message_content=True,
     members=True,
     emojis=True,
     voice_states=True
@@ -75,7 +78,7 @@ HTTP_SEARCH_TIMEOUT: int = cfg["http"]["response_timeout_seconds"]
 
 # FFMPEG
 
-ffmpeg_options: dict = cfg["ffmpeg"]["options"]
+ffmpeg_options: str = cfg["ffmpeg"]["options"]
 
 # Jukebox
 

@@ -15,11 +15,13 @@ Contents:
     Global commands
     Startup
 """
+from importlib import reload
 
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot, Context, HelpCommand
 
+import asyncio
 import config
 import err
 import jukebox_commands
@@ -53,16 +55,36 @@ class MusicBot(Bot):
 
     # Init
 
-    def __init__(self, **options) -> None:
+    def __init__(self) -> None:
         super().__init__(
             command_prefix=config.COMMAND_PREFIX,
-            description=strings.get("client_description"),
-            allowed_mentions=discord.AllowedMentions.none(),
             intents=config.DISCORD_INTENTS,
-            **options)
+            description=strings.get("client_description"),
+            allowed_mentions=discord.AllowedMentions.none())
         self.help_command = self.MusicHelpCommand()
 
     # Bot events
+
+    async def setup_hook(self) -> None:
+        # Load required extensions
+        await self.load_extension(name=jukebox_commands.__name__)
+        jukebox.bot = self
+
+    async def on_ready(self) -> None:
+        msg = strings.get("log_console_client_ready").format(
+            self.user.name,
+            self.user.discriminator,
+            self.user.id)
+        print(msg)
+
+        if config.LOGGING_CHANNEL:
+            channel = self.get_channel(config.CHANNEL_LOG)
+            msg = strings.get("log_channel_client_ready").format(
+                self.user.name,
+                self.user.discriminator,
+                self.user.id,
+                strings.emoji_connection)
+            await channel.send(content=msg)
 
     async def on_command(self, ctx: Context) -> None:
         # Log all used jukebox commands for auditing
@@ -101,6 +123,9 @@ class MusicBot(Bot):
             jukebox.stop()
             await jukebox.voice_client.disconnect()
 
+    def reload_strings(self) -> None:
+        reload(strings)
+
     # Bot utilities
 
     async def log_command(self, ctx: Context) -> None:
@@ -123,36 +148,13 @@ class MusicBot(Bot):
                     ctx.channel.mention,
                     ctx.message.content,
                     emoji)
-                await self.get_channel(id=config.CHANNEL_LOG).send(content=msg)
+                await self.get_channel(config.CHANNEL_LOG).send(content=msg)
 
 
 # Init
 
 
 bot = MusicBot()
-bot.load_extension(name=jukebox_commands.__name__)
-jukebox.bot = bot
-
-
-# Runtime events
-
-
-@bot.event
-async def on_ready() -> None:
-    msg = strings.get("log_console_client_ready").format(
-        bot.user.name,
-        bot.user.discriminator,
-        bot.user.id)
-    print(msg)
-
-    if config.LOGGING_CHANNEL:
-        channel = bot.get_channel(id=config.CHANNEL_LOG)
-        msg = strings.get("log_channel_client_ready").format(
-            bot.user.name,
-            bot.user.discriminator,
-            bot.user.id,
-            strings.emoji_connection)
-        await channel.send(content=msg)
 
 
 # Global commands
@@ -178,4 +180,8 @@ async def is_valid_command_use(ctx: Context) -> bool:
 
 
 # Run bot
-bot.run(config.TOKEN_DISCORD)
+async def main():
+    async with bot:
+        await bot.start(token=config.TOKEN_DISCORD)
+
+asyncio.run(main=main())

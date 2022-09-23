@@ -20,7 +20,7 @@ import asyncio
 import os
 import shutil
 from asyncio import AbstractEventLoop
-from typing import Union, List, Optional
+from typing import List, Optional
 
 import discord
 import random
@@ -45,7 +45,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         playlist_title: Optional[str] = None
         response_url: Optional[str] = None
         num_failed: int = 0
-        response: dict = None
+        response: Optional[dict] = None
         response = await loop.run_in_executor(
             executor=None,
             func=lambda: ytdlconn.extract_info(
@@ -90,7 +90,7 @@ class JukeboxItem:
         self.url: str = url
         self.duration: int = duration
         self.added_by: discord.User = added_by
-        self.audio: discord.FFmpegPCMAudio = None
+        self.audio: Optional[discord.FFmpegPCMAudio] = None
 
     def audio_from_source(self) -> discord.FFmpegPCMAudio:
         self.audio = discord.FFmpegPCMAudio(
@@ -105,7 +105,7 @@ class Jukebox:
         self._multiqueue: List[List[JukeboxItem]] = []
         self._multiqueue_index: int = 0
         self.bot: commands.Bot = None
-        self.voice_client: discord.VoiceClient = None
+        self.voice_client: Optional[discord.VoiceClient] = None
         self.is_repeating: bool = False
         self.on_track_end_func = None
 

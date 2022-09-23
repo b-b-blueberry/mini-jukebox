@@ -23,10 +23,11 @@ Contents:
     Utility functions
     Discord.py boilerplate
 """
+
 from http.client import responses
 from importlib import reload
 from math import ceil
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 import aiohttp
 import discord
@@ -168,7 +169,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         # Users can only play the jukebox if they're in the voice channel
                         if not jukebox.is_in_voice_channel(member=ctx.author):
                             msg = strings.get("error_command_voice_only").format(
-                                self.bot.get_channel(id=config.CHANNEL_VOICE).mention)
+                                self.bot.get_channel(config.CHANNEL_VOICE).mention)
                         # Playing a populated queue will continue from the current track
                         else:
                             msg = strings.get("jukebox_playing").format(
@@ -302,7 +303,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         start_msg=vote_msg)
                 else:
                     msg = strings.get("error_privileges_other").format(
-                        ctx.guild.get_role(role_id=config.ROLE_TRUSTED).mention,
+                        ctx.guild.get_role(config.ROLE_TRUSTED).mention,
                         ctx.command)
             if msg:
                 await ctx.reply(content=msg)
@@ -341,7 +342,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     start_msg=vote_msg)
             else:
                 msg = strings.get("error_privileges_other").format(
-                    ctx.guild.get_role(role_id=config.ROLE_TRUSTED).mention,
+                    ctx.guild.get_role(config.ROLE_TRUSTED).mention,
                     ctx.command)
         if msg:
             await ctx.reply(content=msg)
@@ -395,7 +396,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         start_msg=vote_msg)
                 else:
                     msg = strings.get("error_privileges_other").format(
-                        ctx.guild.get_role(role_id=config.ROLE_TRUSTED).mention,
+                        ctx.guild.get_role(config.ROLE_TRUSTED).mention,
                         ctx.command)
             except commands.UserNotFound:
                 msg = strings.get("error_user_not_found").format(query)
@@ -407,7 +408,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     async def print_all(self, ctx: Context, page_num: Union[str, int] = "1") -> None:
         async with ctx.typing():
             msg: str = None
-            embed: discord.Embed = None
+            embed: Optional[discord.Embed] = None
             if jukebox.is_empty():
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
@@ -468,7 +469,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
                     url=current.url
                     if current
-                    else discord.Embed.Empty)
+                    else None)
                 embed \
                     .set_author(name=header) \
                     .set_footer(text=footer) \
@@ -483,54 +484,21 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="current", aliases=["e"])
     @commands.check(is_default)
     async def print_current(self, ctx: Context) -> None:
-        msg: str = None
-        embed: discord.Embed = None
-        async with ctx.typing():
-            current: JukeboxItem = jukebox.current_track()
-            if not current:
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
-                msg = strings.get("jukebox_empty").format(emoji)
-            else:
-                # Show info about the currently-playing track
-                msg_lines: List[str] = []
-
-                # currently-playing track
-                title: str = strings.get("jukebox_title").format(
-                    strings.get("status_playing").format(current.title, strings.emoji_play)
-                    if jukebox.voice_client and jukebox.voice_client.is_playing()
-                    else strings.get("status_paused").format(current.title, strings.emoji_pause))
-
-                # added-by user
-                msg_lines.append(strings.get("jukebox_added_by").format(
-                    current.added_by.mention,
-                    format_duration(sec=current.duration)))
-
-                # queue summary
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
-                header: str = strings.get("jukebox_header")
-                embed = discord.Embed(
-                    title=title,
-                    description="\n".join(msg_lines),
-                    colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
-                    url=current.url
-                    if current
-                    else discord.Embed.Empty)
-                embed \
-                    .set_author(name=header) \
-                    .set_thumbnail(url=emoji.url)
-
-            if msg or embed:
-                if hasattr(ctx, "reply"):
-                    await ctx.reply(content=msg, embed=embed)
-                else:
-                    await ctx.send(content=msg, embed=embed)
+        msg: Optional[str]
+        embed: Optional[discord.Embed]
+        msg, embed = self.print_track(guild=ctx.guild)
+        if embed:
+            embed.colour = ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
+        if msg or embed:
+            if ctx and hasattr(ctx, "reply"):
+                await ctx.reply(content=msg, embed=embed)
 
     @commands.command(name="lyrics", aliases=["l"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def lyrics(self, ctx: Context, *, query: str = None) -> None:
         msg: str = None
-        embed: discord.Embed = None
+        embed: Optional[discord.Embed] = None
         if query and query.isdigit():
             # Number queries are treated as a search by index
             index: int = int(query)
@@ -548,7 +516,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if not msg:
                 query_url: str = "https://search.azlyrics.com/search.php?q={0}&x={1}".format(query, config.TOKEN_LYRICS)
                 timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
-                result_url: str = None
+                result_url: Optional[str] = None
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url=query_url, timeout=timeout) as response:
                         if response.status != 200:
@@ -681,7 +649,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id))
-        self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
+        await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
     @commands.command(name="exit", aliases=["x"])
@@ -817,8 +785,45 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Command utilities
 
+    def print_track(self, guild: discord.Guild) -> (Optional[str], Optional[discord.Embed]):
+        msg: Optional[str] = None
+        embed: Optional[discord.Embed] = None
+        current: JukeboxItem = jukebox.current_track()
+        if not current:
+            emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+            msg = strings.get("jukebox_empty").format(emoji)
+        else:
+            # Show info about the currently-playing track
+            msg_lines: List[str] = []
+
+            # currently-playing track
+            title: str = strings.get("jukebox_title").format(
+                strings.get("status_playing").format(current.title, strings.emoji_play)
+                if jukebox.voice_client and jukebox.voice_client.is_playing()
+                else strings.get("status_paused").format(current.title, strings.emoji_pause))
+
+            # added-by user
+            msg_lines.append(strings.get("jukebox_added_by").format(
+                current.added_by.mention,
+                format_duration(sec=current.duration)))
+
+            # queue summary
+            emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+            header: str = strings.get("jukebox_header")
+            embed = discord.Embed(
+                title=title,
+                description="\n".join(msg_lines),
+                colour=guild.get_role(config.ROLE_JUKEBOX).colour,
+                url=current.url
+                if current
+                else None)
+            embed \
+                .set_author(name=header) \
+                .set_thumbnail(url=emoji.url)
+        return msg, embed
+
     async def ensure_voice(self) -> None:
-        voice_channel: discord.VoiceChannel = self.bot.get_channel(id=config.CHANNEL_VOICE)
+        voice_channel: discord.VoiceChannel = self.bot.get_channel(config.CHANNEL_VOICE)
         if not isinstance(jukebox.voice_client, discord.VoiceClient) \
                 or not jukebox.voice_client.is_connected() \
                 or not jukebox.voice_client.channel \
@@ -837,9 +842,14 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     async def after_play(self) -> None:
         # Clear votes
         await Vote.clear_votes()
+
         # Post now-playing update
-        ctx: Context = jukebox.voice_client.channel.guild.get_channel(config.CHANNEL_TEXT)
-        await self.print_current(ctx=ctx)
+        channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
+        msg: Optional[str]
+        embed: Optional[discord.Embed]
+        msg, embed = self.print_track(guild=channel.guild)
+        if msg or embed:
+            await channel.send(content=msg, embed=embed)
 
 
 # Utility functions
@@ -859,10 +869,11 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
 # Discord.py boilerplate
 
 
-def setup(bot) -> None:
+async def setup(bot) -> None:
     cog: Commands = Commands(bot)
-    bot.add_cog(cog)
+    await bot.add_cog(cog)
     bot.add_listener(Vote.on_reaction_add)
     jukebox.on_track_end_func = cog.after_play
+    bot.reload_strings()
     reload(strings)
     reload(jukebox_checks)

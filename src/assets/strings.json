@@ -21,7 +21,7 @@
   "jukebox_empty": "{0}\tJukebox queue is empty. Roll another record!",
   "jukebox_added_by": "[`{1}`] — added by {0}",
   "jukebox_added_one": "{3}\tAdded **{0}** (`{1}`) to the queue (as track {2})",
-  "jukebox_added_many": "{4}\tAdded **{0}** with {3} track(s) (`{1}`) starting from track {2}",
+  "jukebox_added_many": "{4}\tAdded **{0}** with {3} track(s) (`{1}`) to the queue (as track {2} onward)",
   "jukebox_added_playing": "{2}\tAdded **{0}** (`{1}`) to the queue — now playing!",
   "jukebox_added_playlist": "{5}\tAdded **{0}** with {3} track(s) (`{1}`) — now playing **{2}** (`{4}`)",
   "jukebox_playing": "{3}\tNow playing **{0}** (`{1}`) — {2}",

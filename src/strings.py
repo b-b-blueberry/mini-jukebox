@@ -9,7 +9,6 @@ References:
     https://unicode.org/emoji/charts/full-emoji-list.html
 """
 
-
 import json
 
 

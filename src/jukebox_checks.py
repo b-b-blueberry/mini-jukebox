@@ -42,6 +42,6 @@ async def is_voice_only(ctx: Context, send_message=True) -> bool:
     if not facts and send_message:
         # Users can only play the jukebox if they're in the voice channel
         msg = strings.get("error_command_voice_only").format(
-            jukebox.bot.get_channel(id=config.CHANNEL_VOICE).mention)
+            jukebox.bot.get_channel(config.CHANNEL_VOICE).mention)
         await ctx.reply(content=msg)
     return facts
