@@ -33,19 +33,19 @@ class MusicBot(Bot):
     # Help commands
 
     class MusicHelpCommand(HelpCommand):
-        async def send_bot_help(self, ctx: Context):
+        async def send_bot_help(self, ctx: Context) -> None:
             await self._send_help()
 
-        async def send_cog_help(self, cog: commands.Cog):
+        async def send_cog_help(self, cog: commands.Cog) -> None:
             await self._send_help()
 
-        async def send_group_help(self, group: commands.Group):
+        async def send_group_help(self, group: commands.Group) -> None:
             await self._send_help()
 
-        async def send_command_help(self, command: commands.Command):
+        async def send_command_help(self, command: commands.Command) -> None:
             await self._send_help()
 
-        async def _send_help(self):
+        async def _send_help(self) -> None:
             text_channel = self.get_destination()
             await text_channel.send(strings.get("info_help").format(
                 text_channel.mention,
@@ -53,7 +53,7 @@ class MusicBot(Bot):
 
     # Init
 
-    def __init__(self, **options):
+    def __init__(self, **options) -> None:
         super().__init__(
             command_prefix=config.COMMAND_PREFIX,
             description=strings.get("client_description"),
@@ -64,11 +64,11 @@ class MusicBot(Bot):
 
     # Bot events
 
-    async def on_command(self, ctx: Context):
+    async def on_command(self, ctx: Context) -> None:
         # Log all used jukebox commands for auditing
         await self.log_command(ctx=ctx)
 
-    async def on_command_error(self, ctx: Context, error: Exception):
+    async def on_command_error(self, ctx: Context, error: Exception) -> None:
         # Add a reaction to posts with unknown commands or invalid uses
         msg = None
         reaction = None
@@ -95,7 +95,7 @@ class MusicBot(Bot):
             if reaction:
                 await ctx.message.add_reaction(reaction)
 
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
         # Stop playing music and leave the voice channel if all other users have disconnected
         if jukebox.voice_client and before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
             jukebox.stop()
@@ -103,7 +103,7 @@ class MusicBot(Bot):
 
     # Bot utilities
 
-    async def log_command(self, ctx: Context):
+    async def log_command(self, ctx: Context) -> None:
         if await is_valid_command_use(ctx=ctx):
             user = ctx.message.author
             if config.LOGGING_CONSOLE:
@@ -138,7 +138,7 @@ jukebox.bot = bot
 
 
 @bot.event
-async def on_ready():
+async def on_ready() -> None:
     msg = strings.get("log_console_client_ready").format(
         bot.user.name,
         bot.user.discriminator,

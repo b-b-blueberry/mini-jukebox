@@ -10,7 +10,7 @@ import strings
 from jukebox_impl import jukebox
 
 
-async def is_admin(ctx: Context, send_message=True):
+async def is_admin(ctx: Context, send_message=True) -> bool:
     facts = any(role.id == config.ROLE_ADMIN for role in ctx.author.roles)
     if not facts and send_message:
         msg = strings.get("error_command_role_permissions")
@@ -18,7 +18,7 @@ async def is_admin(ctx: Context, send_message=True):
     return facts
 
 
-async def is_trusted(ctx: Context, send_message=True):
+async def is_trusted(ctx: Context, send_message=True) -> bool:
     facts = any(role.id == config.ROLE_TRUSTED for role in ctx.author.roles) \
            or await is_admin(ctx=ctx, send_message=False)
     if not facts and send_message:
@@ -27,7 +27,7 @@ async def is_trusted(ctx: Context, send_message=True):
     return facts
 
 
-async def is_default(ctx: Context, send_message=True):
+async def is_default(ctx: Context, send_message=True) -> bool:
     facts = any(role.id == config.ROLE_DEFAULT for role in ctx.author.roles) \
             or await is_trusted(ctx=ctx, send_message=False)
     if not facts and send_message:
@@ -36,7 +36,7 @@ async def is_default(ctx: Context, send_message=True):
     return facts
 
 
-async def is_voice_only(ctx: Context, send_message=True):
+async def is_voice_only(ctx: Context, send_message=True) -> bool:
     # Filter voice-only command uses by users currently in the voice channel
     facts = jukebox.is_in_voice_channel(member=ctx.author) or await is_admin(ctx=ctx, send_message=False)
     if not facts and send_message:

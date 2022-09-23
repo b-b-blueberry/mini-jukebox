@@ -34,7 +34,7 @@ import config
 
 class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
-    async def get_playlist_info(cls, query, *, loop=None):
+    async def get_playlist_info(cls, query: str, *, loop: AbstractEventLoop = None) -> (List[dict], Optional[str], Optional[str], int):
         if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
             print("Query: {0}".format(query))
 
@@ -68,8 +68,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return playlist_info, playlist_title, response_url, num_failed
 
     @classmethod
-    async def get_playlist_files(cls, playlist_info, is_streaming: bool, added_by):
-        playlist_items = []
+    async def get_playlist_files(cls, playlist_info, is_streaming: bool, added_by: discord.member) -> List["JukeboxItem"]:
+        playlist_items: List[JukeboxItem] = []
         for entry in playlist_info:
             # Process and download the track audio
             source = entry.get("url") if is_streaming else ytdlconn.prepare_filename(entry)
@@ -84,12 +84,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 
 class JukeboxItem:
-    def __init__(self, source: str, title: str, url: str, duration: int, added_by: discord.member):
-        self.source = source
-        self.title = title
-        self.url = url
-        self.duration = duration
-        self.added_by = added_by
+    def __init__(self, source: str, title: str, url: str, duration: int, added_by: discord.member) -> None:
+        self.source: str = source
+        self.title: str = title
+        self.url: str = url
+        self.duration: int = duration
+        self.added_by: discord.User = added_by
         self.audio: discord.FFmpegPCMAudio = None
 
     def audio_from_source(self) -> discord.FFmpegPCMAudio:
@@ -100,7 +100,7 @@ class JukeboxItem:
 
 
 class Jukebox:
-    def __init__(self):
+    def __init__(self) -> None:
         _clear_temp_folders()
         self._multiqueue: List[List[JukeboxItem]] = []
         self._multiqueue_index: int = 0
@@ -239,7 +239,7 @@ class Jukebox:
         except FileNotFoundError as error:
             err.log(error)
 
-    def play(self):
+    def play(self) -> None:
         # Reset index to default if out of bounds
         if self._multiqueue_index < 0 or self._multiqueue_index >= len(self._multiqueue):
             self._multiqueue_index = 0
@@ -251,19 +251,19 @@ class Jukebox:
                     after=self._after_play)
             self.voice_client.resume()
 
-    def resume(self):
+    def resume(self) -> None:
         if self.voice_client and self.voice_client.is_paused():
             self.voice_client.resume()
 
-    def pause(self):
+    def pause(self) -> None:
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.pause()
 
-    def stop(self):
+    def stop(self) -> None:
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
 
-    def clear(self):
+    def clear(self) -> None:
         _clear_temp_folders()
         # Clear any and all queues in the multiqueue
         for queue in self._multiqueue:
@@ -295,7 +295,7 @@ class Jukebox:
 
     # Queue events
 
-    def _after_play(self, error: Exception):
+    def _after_play(self, error: Exception) -> None:
         if error:
             err.log(error)
 
@@ -359,9 +359,9 @@ def filter_func(info, *, incomplete) -> str:
             config.TRACK_DURATION_LIMIT)
 
 
-def _clear_temp_folders():
+def _clear_temp_folders() -> None:
     try:
-        fp = config.TEMP_DIR
+        fp: str = config.TEMP_DIR
         if os.path.exists(fp):
             shutil.rmtree(fp)
         os.mkdir(fp)

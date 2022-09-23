@@ -6,7 +6,7 @@
 from datetime import datetime
 
 
-def log(error: Exception):
+def log(error: Exception) -> None:
     print("[{0}]\t{1}".format(
         datetime.now(),
         error))

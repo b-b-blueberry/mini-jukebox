@@ -49,42 +49,42 @@ from jukebox_impl import jukebox, JukeboxItem
 class Vote:
     # Values
 
-    votes = {}
+    votes: Dict[discord.Message, "Vote"] = {}
 
     # Constants
 
-    VOTE_SKIP = 1
-    VOTE_DELETE = 2
-    VOTE_WIPE = 3
+    VOTE_SKIP: int = 1
+    VOTE_DELETE: int = 2
+    VOTE_WIPE: int = 3
     VOTE_RATIO: float = 0.3
 
     # Init
 
-    def __init__(self, vote_type: int, allow_no: bool, extra_data: any = None, end_func: any = None):
-        self.vote_type = vote_type
+    def __init__(self, vote_type: int, allow_no: bool, extra_data: any = None, end_func: any = None) -> None:
+        self.vote_type: int = vote_type
         self.allow_no: bool = allow_no
         self.vote_data: any = extra_data
-        self.end_func = end_func
+        self.end_func: any = end_func
 
     # Utility functions
 
     @classmethod
-    async def start_vote(cls, ctx: Context, vote, start_msg: str):
+    async def start_vote(cls, ctx: Context, vote, start_msg: str) -> None:
         if any(v.vote_type == vote.vote_type for v in Vote.votes.values()):
-            msg = strings.get("info_vote_in_progress")
+            msg: str = strings.get("info_vote_in_progress")
             await ctx.reply(content=msg)
             return
 
-        msg = strings.get("info_vote_start").format(start_msg)
-        vote_message = await ctx.reply(content=msg)
+        msg: str = strings.get("info_vote_start").format(start_msg)
+        vote_message: discord.Message = await ctx.reply(content=msg)
         cls.votes[vote_message] = vote
         await vote_message.add_reaction(strings.emoji_vote_yes)
         if vote.allow_no:
             await vote_message.add_reaction(strings.emoji_vote_no)
 
     @classmethod
-    async def check_vote(cls, reaction: discord.Reaction):
-        vote = cls.votes.get(reaction.message)
+    async def check_vote(cls, reaction: discord.Reaction) -> None:
+        vote: Vote = cls.votes.get(reaction.message)
         if vote:
             vote_count = reaction.count - 1  # We subtract 1 to discount this bots original reaction
             required_count = Vote.required_votes()
@@ -104,7 +104,7 @@ class Vote:
                     end_msg=end_msg)
 
     @classmethod
-    async def clear_votes(cls):
+    async def clear_votes(cls) -> None:
         for message in cls.votes.keys():
             await message.edit(
                 content=strings.get("info_vote_expire"),
@@ -118,8 +118,8 @@ class Vote:
     # Runtime events
 
     @staticmethod
-    async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
-        # Update votes based on reactions, ignoring reactions from users not in the intended channels
+    async def on_reaction_add(reaction: discord.Reaction, user: discord.User) -> None:
+        # Update votes based on reactions, ignoring reactions from users not in the designated text channel
         if reaction.message.channel.id == config.CHANNEL_TEXT \
                 and not user.bot \
                 and isinstance(user, discord.Member) \
@@ -133,24 +133,24 @@ class Vote:
 class Commands(commands.Cog, name=config.COG_COMMANDS):
     # Values
 
-    is_blocking_commands = False
+    is_blocking_commands: bool = False
 
     # Constants
 
-    ERROR_BAD_PARAMS = "Bad command paramters: {0}"
+    ERROR_BAD_PARAMS: str = "Bad command paramters: {0}"
 
     # Init
 
-    def __init__(self, bot: discord.ext.commands.Bot):
-        self.bot = bot
+    def __init__(self, bot: commands.Bot):
+        self.bot: commands.Bot = bot
 
     # Default user commands
 
     @commands.command(name="add", aliases=["a"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def add(self, ctx: Context, *, query: str = None):
-        msg = None
+    async def add(self, ctx: Context, *, query: str = None) -> None:
+        msg: str = None
         starting_from_empty: bool = jukebox.is_empty()
         # Assume number values are user error
         if query and query.isdigit():
@@ -194,7 +194,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     elif not any(playlist_info):
                         msg = strings.get("error_track_one" if num_failed < 2 else "error_track_all")
                     else:
-                        extractor = playlist_info[0].get("extractor").split(sep=":")[0] \
+                        extractor: str = playlist_info[0].get("extractor").split(sep=":")[0] \
                             if playlist_info[0] and "extractor" in playlist_info[0].keys() \
                             else None
                         if not extractor:
@@ -203,14 +203,14 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             msg = strings.get("error_domain_not_whitelisted").format(extractor)
                         else:
                             # Check for excessively large track lists
-                            playlist_duration = sum([int(track.get("duration", 0)) for track in playlist_info])
-                            playlist_filesize = bytes_to_mib(sum([track.get("filesize", 0) for track in playlist_info]))
-                            playlist_oversize = playlist_duration > config.PLAYLIST_DURATION_WARNING \
+                            playlist_duration: int = sum([int(track.get("duration", 0)) for track in playlist_info])
+                            playlist_filesize: float = bytes_to_mib(sum([track.get("filesize", 0) for track in playlist_info]))
+                            playlist_oversize: bool = playlist_duration > config.PLAYLIST_DURATION_WARNING \
                                 or playlist_filesize > config.PLAYLIST_FILESIZE_WARNING \
                                 or len(playlist_info) > config.PLAYLIST_LENGTH_WARNING
                             # Post a notice if delays are expected
                             if not config.PLAYLIST_STREAMING and playlist_oversize:
-                                temp_msg = strings.get("info_large_download").format(
+                                temp_msg: str = strings.get("info_large_download").format(
                                     len(playlist_info),
                                     format_duration(sec=playlist_duration, is_playlist=True),
                                     playlist_filesize
@@ -274,8 +274,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="skip", aliases=["s"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def skip(self, ctx: Context, skip_count: int = 1):
-
+    async def skip(self, ctx: Context, skip_count: int = 1) -> None:
         msg: str = None
         async with ctx.typing():
             if jukebox.is_empty():
@@ -289,10 +288,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         ctx=ctx,
                         extra_data=tracks)
                 elif await is_trusted(ctx=ctx, send_message=False):
-                    vote_msg = strings.get("info_vote_skip").format(
+                    vote_msg: str = strings.get("info_vote_skip").format(
                         skip_count,
                         ctx.message.author.mention)
-                    vote = Vote(
+                    vote: Vote = Vote(
                         vote_type=Vote.VOTE_SKIP,
                         allow_no=False,
                         extra_data=tracks,
@@ -311,13 +310,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="delete", aliases=["d"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def delete(self, ctx: Context, index: int = 1):
+    async def delete(self, ctx: Context, index: int = 1) -> None:
         index -= 1
-
-        msg = None
         track: JukeboxItem = jukebox.get_item_by_index(index=index)
         if not track:
             raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(index))
+        msg: str = None
         async with ctx.typing():
             if jukebox.is_empty():
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
@@ -328,11 +326,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     ctx=ctx,
                     extra_data=index)
             elif await is_trusted(ctx=ctx, send_message=False):
-                vote_msg = strings.get("info_vote_delete").format(
+                vote_msg: str = strings.get("info_vote_delete").format(
                     track.title,
                     ctx.message.author.mention,
                     track.added_by.mention)
-                vote = Vote(
+                vote: Vote = Vote(
                         vote_type=Vote.VOTE_DELETE,
                         allow_no=False,
                         extra_data=index,
@@ -351,8 +349,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="wipe", aliases=["w"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def wipe(self, ctx: Context, *, query: str = None):
-        msg = None
+    async def wipe(self, ctx: Context, *, query: str = None) -> None:
+        msg: str = None
         async with ctx.typing():
             try:
                 # Accept users by fuzzy query
@@ -406,11 +404,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="queue", aliases=["q"])
     @commands.check(is_default)
-    async def print_all(self, ctx: Context, page_num: str = "1"):
+    async def print_all(self, ctx: Context, page_num: Union[str, int] = "1") -> None:
         async with ctx.typing():
-
-            msg = None
-            embed = None
+            msg: str = None
+            embed: discord.Embed = None
             if jukebox.is_empty():
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
@@ -428,12 +425,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 page_num -= 1
 
                 # Print playlist by elements for the selected (or default) page
-                msg_lines = []
+                msg_lines: List[str] = []
                 current: JukeboxItem = queue[0]
 
                 # aggregated tracks
-                index_start = pagination_count * page_num
-                index_end = index_start + pagination_count
+                index_start: int = pagination_count * page_num
+                index_end: int = index_start + pagination_count
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=index_start, index_end=index_end)
                 track_msgs: List[str] = [strings.get("jukebox_item").format(
                     index_start + i + 1,
@@ -443,7 +440,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         for i, item in enumerate(iterable=tracks)]
 
                 # currently-playing track
-                title = strings.get("jukebox_title").format(
+                title: str = strings.get("jukebox_title").format(
                     strings.get("status_playing").format(current.title, strings.emoji_play)
                     if jukebox.voice_client and jukebox.voice_client.is_playing()
                     else strings.get("status_paused").format(current.title, strings.emoji_pause))
@@ -457,8 +454,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                                                              else strings.get("off"),
                                                                              strings.emoji_repeat))
                 # queue summary
-                header = strings.get("jukebox_header")
-                footer = strings.get("jukebox_footer").format(
+                header: str = strings.get("jukebox_header")
+                footer: str = strings.get("jukebox_footer").format(
                     len(queue),
                     format_duration(sec=sum([i.duration for i in queue]), is_playlist=True),
                     page_num + 1,
@@ -485,20 +482,20 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="current", aliases=["e"])
     @commands.check(is_default)
-    async def print_current(self, ctx: Context):
-        msg = None
-        embed = None
+    async def print_current(self, ctx: Context) -> None:
+        msg: str = None
+        embed: discord.Embed = None
         async with ctx.typing():
-            current = jukebox.current_track()
+            current: JukeboxItem = jukebox.current_track()
             if not current:
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             else:
                 # Show info about the currently-playing track
-                msg_lines = []
+                msg_lines: List[str] = []
 
                 # currently-playing track
-                title = strings.get("jukebox_title").format(
+                title: str = strings.get("jukebox_title").format(
                     strings.get("status_playing").format(current.title, strings.emoji_play)
                     if jukebox.voice_client and jukebox.voice_client.is_playing()
                     else strings.get("status_paused").format(current.title, strings.emoji_pause))
@@ -509,8 +506,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     format_duration(sec=current.duration)))
 
                 # queue summary
-                header = strings.get("jukebox_header")
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                header: str = strings.get("jukebox_header")
                 embed = discord.Embed(
                     title=title,
                     description="\n".join(msg_lines),
@@ -531,12 +528,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="lyrics", aliases=["l"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def lyrics(self, ctx: Context, *, query: str = None):
-        msg = None
-        embed = None
+    async def lyrics(self, ctx: Context, *, query: str = None) -> None:
+        msg: str = None
+        embed: discord.Embed = None
         if query and query.isdigit():
             # Number queries are treated as a search by index
-            index = int(query)
+            index: int = int(query)
             # Treat user search queries as 1-indexed
             if index < 1 or index > jukebox.num_tracks():
                 raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
@@ -549,9 +546,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 else:
                     query = jukebox.current_track().title
             if not msg:
-                query_url = "https://search.azlyrics.com/search.php?q={0}&x={1}".format(query, config.TOKEN_LYRICS)
+                query_url: str = "https://search.azlyrics.com/search.php?q={0}&x={1}".format(query, config.TOKEN_LYRICS)
                 timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
-                result_url = None
+                result_url: str = None
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url=query_url, timeout=timeout) as response:
                         if response.status != 200:
@@ -559,7 +556,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 f"{response.status} {responses[response.status]}")
                         else:
                             try:
-                                html_text = await response.text()
+                                html_text: str = await response.text()
                                 html = BeautifulSoup(markup=html_text, features="html.parser")
                                 result_url = html \
                                     .find(class_="container main-page", recursive=True) \
@@ -575,18 +572,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 msg = strings.get("error_http_status_code").format(
                                     f"{response.status} {responses[response.status]}")
                             else:
-                                html_text = await response.text()
+                                html_text: str = await response.text()
                                 html = BeautifulSoup(markup=html_text, features="html.parser")
                                 html_heading = html.find(class_="lyricsh", recursive=True)
-                                header = html_heading.find(name="b", recursive=True).text
+                                header: str = html_heading.find(name="b", recursive=True).text
                                 html_subheading = html_heading.parent.find(name="b", recursive=False)
-                                title = html_subheading.text
-                                html_body = html_subheading.find_next_sibling(name="div")
-                                text = html_body.text
+                                title: str = html_subheading.text
+                                text: str = html_subheading.find_next_sibling(name="div").text
                                 text = text[:1750] + "..." \
                                     if len(text) > 1750 \
                                     else text
-                                emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                                 embed = discord.Embed(
                                     title=title,
                                     description=text,
@@ -607,7 +603,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="shuffle", aliases=["f"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
-    async def shuffle(self, ctx: Context):
+    async def shuffle(self, ctx: Context) -> None:
         async with ctx.typing():
             msg: str = None
             queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
@@ -631,7 +627,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="pause", aliases=["p"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
-    async def toggle_pause(self, ctx: Context):
+    async def toggle_pause(self, ctx: Context) -> None:
         async with ctx.typing():
             msg: str = None
             current: JukeboxItem = jukebox.current_track()
@@ -666,9 +662,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="loop", aliases=["o"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
-    async def toggle_loop(self, ctx: Context):
+    async def toggle_loop(self, ctx: Context) -> None:
         jukebox.repeat()
-        msg = strings.get("status_looping").format(
+        msg: str = strings.get("status_looping").format(
             strings.get("on")
             if jukebox.is_repeating
             else strings.get("off"),
@@ -690,7 +686,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="exit", aliases=["x"])
     @commands.check(is_admin)
-    async def exit(self, ctx: Context):
+    async def exit(self, ctx: Context) -> None:
         print("Exiting voice with {3} listeners. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -703,7 +699,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="cleartracks", aliases=["c"], hidden=True)
     @commands.check(is_admin)
-    async def clear_tracks(self, ctx: Context):
+    async def clear_tracks(self, ctx: Context) -> None:
         print("Clearing {3} tracks. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -714,7 +710,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="clearvotes", aliases=["v"], hidden=True)
     @commands.check(is_admin)
-    async def clear_votes(self, ctx: Context):
+    async def clear_votes(self, ctx: Context) -> None:
         print("Clearing {3} votes. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -725,7 +721,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="block", aliases=["b"])
     @commands.check(is_admin)
-    async def block_commands(self, ctx: Context):
+    async def block_commands(self, ctx: Context) -> None:
         print("Blocking commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -735,7 +731,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="unblock", aliases=["n"])
     @commands.check(is_admin)
-    async def unblock_commands(self, ctx: Context):
+    async def unblock_commands(self, ctx: Context) -> None:
         print("Unblocking commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -754,7 +750,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
-    async def test_string(self, ctx: Context, string: str):
+    async def test_string(self, ctx: Context, string: str) -> None:
         msg: str = strings.get(string)
         await ctx.reply(content="{0}: {1}".format(string, msg)
                         if msg
@@ -762,10 +758,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Vote finalisers
 
-    async def _after_skip_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data=None, end_msg="{0}"):
-        msg = None
+    async def _after_skip_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data: any = None, end_msg: str = "{0}") -> None:
+        msg: str = None
         if success:
-            tracks = vote.vote_data if vote else extra_data
+            tracks: List[JukeboxItem] = vote.vote_data if vote else extra_data
             jukebox.remove_many(tracks=tracks)
             msg = strings.get("info_skip_success").format(
                 len(tracks),
@@ -776,8 +772,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
 
-    async def _after_delete_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data=None, end_msg="{0}"):
-        msg = None
+    async def _after_delete_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data: any = None, end_msg: str = "{0}") -> None:
+        msg: str = None
         if success:
             index: int = vote.vote_data if vote else extra_data
             item: JukeboxItem = jukebox.get_item_by_index(index=index)
@@ -797,8 +793,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
 
-    async def _after_wipe_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data=None, end_msg="{0}"):
-        msg = None
+    async def _after_wipe_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data=None, end_msg="{0}") -> None:
+        msg: str = None
         if success:
             tracks = vote.vote_data if vote else extra_data
             num_tracks: int = len(tracks)
@@ -821,7 +817,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Command utilities
 
-    async def ensure_voice(self):
+    async def ensure_voice(self) -> None:
         voice_channel: discord.VoiceChannel = self.bot.get_channel(id=config.CHANNEL_VOICE)
         if not isinstance(jukebox.voice_client, discord.VoiceClient) \
                 or not jukebox.voice_client.is_connected() \
@@ -838,10 +834,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         if not jukebox.voice_client:
             raise Exception(strings.get("error_voice_not_found"))
 
-
-    async def after_play(self):
+    async def after_play(self) -> None:
         # Clear votes
         await Vote.clear_votes()
+        # Post now-playing update
+        ctx: Context = jukebox.voice_client.channel.guild.get_channel(config.CHANNEL_TEXT)
+        await self.print_current(ctx=ctx)
 
 
 # Utility functions
@@ -861,7 +859,7 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
 # Discord.py boilerplate
 
 
-def setup(bot):
+def setup(bot) -> None:
     cog: Commands = Commands(bot)
     bot.add_cog(cog)
     bot.add_listener(Vote.on_reaction_add)
