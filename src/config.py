@@ -36,11 +36,12 @@ with open(file=CONFIG_PATH, mode="r") as config_file:
     cfg = json.load(config_file)
 
 # Tokens
+
+TOKEN_DISCORD = cfg["tokens"]["discord"]
 TOKEN_LYRICS = cfg["tokens"]["azlyrics"]
 
 # Discord
 
-DISCORD_TOKEN = cfg["discord"]["token"]
 DISCORD_INTENTS: discord.Intents = discord.Intents(
     guilds=True,
     guild_messages=True,

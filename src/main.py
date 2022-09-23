@@ -178,4 +178,4 @@ async def is_valid_command_use(ctx: Context) -> bool:
 
 
 # Run bot
-bot.run(config.DISCORD_TOKEN)
+bot.run(config.TOKEN_DISCORD)
