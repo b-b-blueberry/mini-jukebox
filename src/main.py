@@ -66,8 +66,7 @@ class MusicBot(Bot):
 
     async def on_command(self, ctx: Context):
         # Log all used jukebox commands for auditing
-        if config.LOGGING_CHANNEL:
-            await self.log_command(ctx=ctx)
+        await self.log_command(ctx=ctx)
 
     async def on_command_error(self, ctx: Context, error: Exception):
         # Add a reaction to posts with unknown commands or invalid uses
@@ -107,15 +106,24 @@ class MusicBot(Bot):
     async def log_command(self, ctx: Context):
         if await is_valid_command_use(ctx=ctx):
             user = ctx.message.author
-            emoji = await commands.EmojiConverter().convert(ctx=ctx, argument=strings.get("emoji_id_jukebox"))
-            msg = strings.get("log_channel_command_used").format(
-                user.name,
-                user.discriminator,
-                user.id,
-                ctx.channel.mention,
-                ctx.message.content,
-                emoji)
-            await self.get_channel(id=config.CHANNEL_LOG).send(content=msg)
+            if config.LOGGING_CONSOLE:
+                msg = strings.get("log_console_command_used").format(
+                    user.name,
+                    user.discriminator,
+                    user.id,
+                    ctx.message.content)
+                print(msg)
+
+            if config.LOGGING_CHANNEL:
+                emoji = await commands.EmojiConverter().convert(ctx=ctx, argument=strings.get("emoji_id_jukebox"))
+                msg = strings.get("log_channel_command_used").format(
+                    user.name,
+                    user.discriminator,
+                    user.id,
+                    ctx.channel.mention,
+                    ctx.message.content,
+                    emoji)
+                await self.get_channel(id=config.CHANNEL_LOG).send(content=msg)
 
 
 # Init
@@ -131,13 +139,20 @@ jukebox.bot = bot
 
 @bot.event
 async def on_ready():
-    channel = bot.get_channel(id=config.CHANNEL_LOG)
-    msg = strings.get("log_channel_client_ready").format(
+    msg = strings.get("log_console_client_ready").format(
         bot.user.name,
         bot.user.discriminator,
-        bot.user.id,
-        strings.emoji_connection)
-    await channel.send(content=msg)
+        bot.user.id)
+    print(msg)
+
+    if config.LOGGING_CHANNEL:
+        channel = bot.get_channel(id=config.CHANNEL_LOG)
+        msg = strings.get("log_channel_client_ready").format(
+            bot.user.name,
+            bot.user.discriminator,
+            bot.user.id,
+            strings.emoji_connection)
+        await channel.send(content=msg)
 
 
 # Global commands

@@ -5,6 +5,9 @@
   "client_name": "Mini-Jukebox",
   "client_description": "Stardew Valley Discord music bot",
 
+  "log_console_client_ready": "Logged in as {0}#{1} ({2})",
+  "log_console_command_used": "{0}#{1} ({2}): {3}",
+
   "log_channel_client_ready": "{3} Logged in as **{0}#{1}** (`{2}`)",
   "log_channel_command_used": "{5} **{0}#{1} ({2})** used in {3}: `{4}`",
 
