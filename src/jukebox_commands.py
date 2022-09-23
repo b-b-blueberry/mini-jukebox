@@ -86,8 +86,8 @@ class Vote:
     async def check_vote(cls, reaction: discord.Reaction):
         vote = cls.votes.get(reaction.message)
         if vote:
-            required_count = round(jukebox.num_listeners() * cls.VOTE_RATIO)
             vote_count = reaction.count - 1  # We subtract 1 to discount this bots original reaction
+            required_count = Vote.required_votes()
             vote_succeeded = reaction.emoji == strings.emoji_vote_yes and vote_count >= required_count
             vote_failed = vote.allow_no and reaction.emoji == strings.emoji_vote_no and vote_count > required_count
             if vote_succeeded or vote_failed:
@@ -110,6 +110,10 @@ class Vote:
                 content=strings.get("info_vote_expire"),
                 delete_after=10)
         cls.votes.clear()
+
+    @classmethod
+    def required_votes(cls) -> int:
+        return ceil(jukebox.num_listeners() * cls.VOTE_RATIO)
 
     # Runtime events
 
@@ -279,7 +283,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg = strings.get("jukebox_empty").format(emoji)
             else:
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
-                if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False):
+                if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False) \
+                        or Vote.required_votes() <= 1:
                     await self._after_skip_vote(
                         ctx=ctx,
                         extra_data=tracks)
@@ -317,7 +322,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if jukebox.is_empty():
                 emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
-            elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False):
+            elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
+                    or Vote.required_votes() <= 1:
                 await self._after_delete_vote(
                     ctx=ctx,
                     extra_data=index)
@@ -367,7 +373,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if not any(tracks):
                     # Ignore calls to wipe an empty queue
                     msg = strings.get("info_wipe_failure")
-                elif user.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False):
+                elif user.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
+                        or all(track.added_by.id == ctx.author.id for track in tracks) \
+                        or Vote.required_votes() <= 1:
                     # For queue-owner and admin calls, wipe the queue immediately
                     await self._after_wipe_vote(
                         ctx=ctx,
@@ -806,8 +814,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await self._after_vote(ctx=ctx)
 
     async def _after_vote(self, ctx: Context):
-        if len(Vote.votes) > 0:
-            msg = strings.get("info_vote_collection_modified").format(len(Vote.votes))
+        if any(Vote.votes):
+            msg: str = strings.get("info_vote_collection_modified").format(len(Vote.votes))
             await ctx.send(content=msg)
             await Vote.clear_votes()
 
