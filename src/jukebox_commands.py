@@ -655,10 +655,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.id,
             jukebox.num_listeners()))
         jukebox.stop()
-        await jukebox.voice_client.disconnect()
+        if jukebox.voice_client:
+            await jukebox.voice_client.disconnect()
         await ctx.message.add_reaction(strings.emoji_confirm)
 
-    @commands.command(name="clear", aliases=["c"], hidden=True)
+    @commands.command(name="cleartracks", aliases=["c"], hidden=True)
     @commands.check(is_admin)
     async def clear_tracks(self, ctx: Context):
         print("Clearing {3} tracks. [{0}#{1} ({2})]".format(
@@ -712,8 +713,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
     async def test_string(self, ctx: Context, string: str):
-        msg = strings.get(string)
-        await ctx.reply(content="{0}: {1}".format(string, msg) if msg else strings.get("error_string_not_found").format(string))
+        msg: str = strings.get(string)
+        await ctx.reply(content="{0}: {1}".format(string, msg)
+                        if msg
+                        else strings.get("error_string_not_found").format(string))
 
     # Vote finalisers
 
