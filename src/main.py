@@ -98,12 +98,9 @@ class MusicBot(Bot):
 
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         # Stop playing music and leave the voice channel if all other users have disconnected
-        try:
-            if before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
-                jukebox.stop()
-                await jukebox.voice_client.disconnect()
-        except Exception as error:
-            err.log(error)
+        if jukebox.voice_client and before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
+            jukebox.stop()
+            await jukebox.voice_client.disconnect()
 
     # Bot utilities
 
