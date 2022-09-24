@@ -1,6 +1,7 @@
 {
   "emoji_id_jukebox": "SDVitemjukebox",
   "emoji_id_record": "SDVitemvinylrecord",
+  "emoji_id_character": "SDVnukebox",
 
   "client_name": "Mini-Jukebox",
   "client_description": "Stardew Valley Discord music bot",
@@ -23,7 +24,8 @@
   "jukebox_title": "**{0}**",
   "jukebox_item": "`{0}.` (`{1}`)\t**{3}** — {2}",
   "jukebox_empty": "{0}\tJukebox queue is empty. Roll another record!",
-  "jukebox_added_by": "[`{1}`] — added by {0}",
+  "jukebox_added_by": "(`{1}`) — {0}",
+  "jukebox_track_progress": "`{1}/{2}` {0} {3}",
   "jukebox_added_one": "{3}\tAdded **{0}** (`{1}`) to the queue (as track {2})",
   "jukebox_added_many": "{4}\tAdded **{0}** with {3} track(s) (`{1}`) to the queue (as track {2} onward)",
   "jukebox_added_playing": "{2}\tAdded **{0}** (`{1}`) to the queue — now playing!",

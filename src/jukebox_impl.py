@@ -17,19 +17,59 @@ Contents:
 """
 
 import asyncio
+import io
 import os
 import shutil
 from asyncio import AbstractEventLoop
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import discord
 import random
 import yt_dlp
+from discord import FFmpegPCMAudio
 from discord.ext import commands
 
 import err
 import strings
 import config
+
+
+class TrackingAudio(FFmpegPCMAudio):
+    """
+    An override of the FFmpegPCMAudio class with tracking information.
+    :param source: The input that ffmpeg will take and convert to PCM bytes.
+    :param options: Extra command line arguments to pass to ffmpeg.
+    """
+    def __init__(self, source: Union[str, io.BufferedIOBase], duration_seconds: int, options: Optional[str] = None) -> None:
+        super().__init__(source=source, options=options)
+
+        self._sec_total: int = duration_seconds
+        self._ms_current: float = 0
+
+    def read(self) -> bytes:
+        """
+        Override of AudioSource read method with tracking behaviour.
+        """
+        self._ms_current += discord.opus.Encoder.FRAME_LENGTH
+        return super().read()
+
+    def progress(self) -> int:
+        """
+        Gets current track progress.
+        """
+        return round(self._ms_current / 1000)
+
+    def duration(self) -> int:
+        """
+        Gets track duration.
+        """
+        return self._sec_total
+
+    def ratio(self) -> float:
+        """
+        Gets ratio of track progress to duration.
+        """
+        return self.progress() / self.duration() if self._sec_total > 0 else 0
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -108,14 +148,15 @@ class JukeboxItem:
         self.url: str = url
         self.duration: int = duration
         self.added_by: discord.User = added_by
-        self.audio: Optional[discord.FFmpegPCMAudio] = None
+        self.audio: Optional[TrackingAudio] = None
 
-    def audio_from_source(self) -> discord.FFmpegPCMAudio:
+    def audio_from_source(self) -> TrackingAudio:
         """
         Fetch audio data from self source URL.
         """
-        self.audio = discord.FFmpegPCMAudio(
+        self.audio = TrackingAudio(
             source=self.source,
+            duration_seconds=self.duration,
             options=config.ffmpeg_options)
         return self.audio
 

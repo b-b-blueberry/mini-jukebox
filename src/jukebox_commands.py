@@ -23,10 +23,10 @@ Contents:
     Utility functions
     Discord.py boilerplate
 """
-
+import random
 from http.client import responses
 from importlib import reload
-from math import ceil
+from math import ceil, floor
 from typing import List, Dict, Union, Optional
 
 import aiohttp
@@ -540,7 +540,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str]
         embed: Optional[discord.Embed]
-        msg, embed = self.get_current_track_info(guild=ctx.guild)
+        msg, embed = self.get_current_track_info(guild=ctx.guild, show_tracking=True)
         if msg or embed:
             if ctx and hasattr(ctx, "reply"):
                 await ctx.reply(content=msg, embed=embed)
@@ -910,10 +910,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Command utilities
 
-    def get_current_track_info(self, guild: discord.Guild) -> (Optional[str], Optional[discord.Embed]):
+    def get_current_track_info(self, guild: discord.Guild, show_tracking: bool) -> (Optional[str], Optional[discord.Embed]):
         """
         Generates an embed preview for the currently-playing track in the queue.
         :param guild: Discord server to use for role checks.
+        :param show_tracking: Whether to show track progress bar.
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
@@ -931,10 +932,22 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if jukebox.voice_client and jukebox.voice_client.is_playing()
                 else strings.get("status_paused").format(current.title, strings.emoji_pause))
 
-            # added-by user
-            msg_lines.append(strings.get("jukebox_added_by").format(
-                current.added_by.mention,
-                format_duration(sec=current.duration)))
+            if show_tracking:
+                # track progress bar
+                tracking_str: list = ["▬"] * min(20, max(10, len(current.title) - 10))
+                tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
+                    strings.emoji_blue_circle if random.randint(0, 200) > 0 \
+                    else str(utils.get(self.bot.emojis, name=strings.get("emoji_id_character")))
+                msg_lines.append(strings.get("jukebox_track_progress").format(
+                    "".join(tracking_str),
+                    format_duration(sec=current.audio.progress()),
+                    format_duration(sec=current.audio.duration()),
+                    current.added_by.mention))
+            else:
+                # added-by user
+                msg_lines.append(strings.get("jukebox_added_by").format(
+                    current.added_by.mention,
+                    format_duration(sec=current.audio.duration())))
 
             # queue summary
             header: str = strings.get("jukebox_header")
@@ -982,7 +995,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
         msg: Optional[str]
         embed: Optional[discord.Embed]
-        msg, embed = self.get_current_track_info(guild=channel.guild)
+        msg, embed = self.get_current_track_info(guild=channel.guild, show_tracking=False)
         if msg or embed:
             await channel.send(content=msg, embed=embed)
 
