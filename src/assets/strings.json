@@ -19,7 +19,6 @@
   "datetime_format_track": "%M:%S",
   "datetime_format_playlist": "%H:%M:%S",
 
-  "jukebox_header": "Mini-Jukebox",
   "jukebox_footer": "Page {2}/{3} of {0} track(s) ({1})",
   "jukebox_title": "**{0}**",
   "jukebox_item": "`{0}.` (`{1}`)\t**{3}** — {2}",

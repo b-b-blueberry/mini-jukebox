@@ -506,7 +506,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                                                              else strings.get("off"),
                                                                              strings.emoji_repeat))
                 # queue summary
-                header: str = strings.get("jukebox_header")
                 footer: str = strings.get("jukebox_footer").format(
                     len(queue),
                     format_duration(sec=sum([i.duration for i in queue]), is_playlist=True),
@@ -522,7 +521,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     if current
                     else None)
                 embed \
-                    .set_author(name=header) \
                     .set_footer(text=footer) \
                     .set_thumbnail(url=emoji.url)
 
@@ -950,7 +948,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     format_duration(sec=current.audio.duration())))
 
             # queue summary
-            header: str = strings.get("jukebox_header")
             emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
             embed = discord.Embed(
                 title=title,
@@ -960,7 +957,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if current
                 else None)
             embed \
-                .set_author(name=header) \
                 .set_thumbnail(url=emoji.url)
         return msg, embed
 
