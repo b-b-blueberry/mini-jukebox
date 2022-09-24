@@ -13,7 +13,7 @@ import json
 from typing import Dict, Optional
 
 
-STRINGS_PATH = "./assets/strings.json"
+STRINGS_PATH = "/jukebox/assets/strings.json"
 with open(file=STRINGS_PATH, mode="r", encoding="utf8") as strings_file:
     _data: Dict[str, str] = json.load(strings_file)
 
