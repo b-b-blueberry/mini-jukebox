@@ -44,7 +44,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         :param loop: Bot async event loop.
         """
         if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
-            print("Query: {0}".format(query))
+            print(strings.get("log_console_media_query").format(query))
 
         loop = loop or asyncio.get_event_loop()
 
@@ -65,7 +65,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
                             else response.get("entries")[0].get("url") \
                             if any(response.get("entries")) \
                             else None
-            print("Reply: {0}".format(response_url))
+            if config.LOGGING_CONSOLE:
+                print(strings.get("log_console_media_response").format(response_url))
         if response:
             playlist_title = response.get("title") if "title" in response else None
             # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
@@ -301,11 +302,16 @@ class Jukebox:
         # Reset index to default if out of bounds
         if self._multiqueue_index < 0 or self._multiqueue_index >= len(self._multiqueue):
             self._multiqueue_index = 0
+
         # Play or resume the jukebox queue
-        if any(self.get_queue()) and self.voice_client and not self.voice_client.is_playing():
+        current: JukeboxItem = self.current_track()
+        if current and self.voice_client and not self.voice_client.is_playing():
+            if config.LOGGING_CONSOLE:
+                print(strings.get("log_console_media_start").format(current.title))
+
             if not self.voice_client.is_paused():
                 self.voice_client.play(
-                    source=self.current_track().audio_from_source(),
+                    source=current.audio_from_source(),
                     after=self._after_play)
             self.voice_client.resume()
 
@@ -394,7 +400,7 @@ class Jukebox:
             self.append(current)
 
         if config.LOGGING_CONSOLE:
-            print("After: {0}".format(current.title))
+            print(strings.get("log_console_media_end").format(current.title))
 
         if config.PLAYLIST_MULTIQUEUE:
             # Go to the next item in the multiqueue
