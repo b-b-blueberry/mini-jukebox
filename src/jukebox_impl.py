@@ -396,7 +396,7 @@ class Jukebox:
         if config.LOGGING_CONSOLE:
             print("After: {0}".format(current.title))
 
-        if config.PLAYLIST_MULTIQUEUE and self._multiqueue_index < len(self._multiqueue) - 1:
+        if config.PLAYLIST_MULTIQUEUE:
             # Go to the next item in the multiqueue
             self._multiqueue_index += 1
 
