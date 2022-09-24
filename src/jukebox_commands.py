@@ -541,8 +541,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: Optional[str]
         embed: Optional[discord.Embed]
         msg, embed = self.get_current_track_info(guild=ctx.guild)
-        if embed:
-            embed.colour = ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
         if msg or embed:
             if ctx and hasattr(ctx, "reply"):
                 await ctx.reply(content=msg, embed=embed)
