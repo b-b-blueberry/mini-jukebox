@@ -192,7 +192,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if not query:
                     # Playing an empty queue does nothing
                     if starting_from_empty:
-                        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                        emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                         msg = strings.get("jukebox_empty").format(emoji)
                     else:
                         current = jukebox.current_track()
@@ -314,7 +314,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: str = None
         async with ctx.typing():
             if jukebox.is_empty():
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             else:
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
@@ -360,7 +360,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: str = None
         async with ctx.typing():
             if jukebox.is_empty():
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
                     or Vote.required_votes() <= 1:
@@ -409,7 +409,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 # Wipe all tracks from a user in the given queue
                 queue: List[JukeboxItem] = jukebox.get_queue(user_id=user.id)
                 if not any(queue):
-                    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                    emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                     msg = strings.get("jukebox_empty").format(emoji)
                 # For multiqueue, we can assume all tracks in a user's queue are their own
                 tracks: List[JukeboxItem] = [track for track in queue if track.added_by.id == user.id] \
@@ -461,7 +461,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             msg: str = None
             embed: Optional[discord.Embed] = None
             if jukebox.is_empty():
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             else:
                 queue: List[JukeboxItem] = jukebox.get_all()
@@ -513,7 +513,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     page_num + 1,
                     page_max)
 
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_jukebox"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_jukebox"))
                 embed = discord.Embed(
                     title=title,
                     description="\n".join(msg_lines),
@@ -566,7 +566,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         async with ctx.typing():
             if not query:
                 if jukebox.is_empty():
-                    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                    emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                     msg = strings.get("jukebox_empty").format(emoji)
                 else:
                     query = jukebox.current_track().title
@@ -607,7 +607,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 text = text[:1750] + "..." \
                                     if len(text) > 1750 \
                                     else text
-                                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                                 embed = discord.Embed(
                                     title=title,
                                     description=text,
@@ -636,7 +636,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             msg: str = None
             queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
             if not any(queue):
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             elif len(queue) == 1:
                 msg = strings.get("jukebox_shuffled_one").format(
@@ -664,7 +664,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             current: JukeboxItem = jukebox.current_track()
             if not current:
                 # Empty jukebox queue does nothing when paused
-                emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
                 msg = strings.get("jukebox_empty").format(emoji)
             elif jukebox.voice_client and jukebox.voice_client.is_playing():
                 # Pause the audio stream if playing
@@ -919,7 +919,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         current: JukeboxItem = jukebox.current_track()
         if not current:
-            emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
             msg = strings.get("jukebox_empty").format(emoji)
         else:
             # Show info about the currently-playing track
@@ -937,8 +937,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 format_duration(sec=current.duration)))
 
             # queue summary
-            emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
             header: str = strings.get("jukebox_header")
+            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
             embed = discord.Embed(
                 title=title,
                 description="\n".join(msg_lines),
