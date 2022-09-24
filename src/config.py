@@ -27,6 +27,8 @@ import yt_dlp
 
 CONFIG_PATH: str = "/private/config.json"
 """Relative path to data file used for bot configuration."""
+STRINGS_PATH = "/jukebox/assets/strings.json"
+"""Relative path to data file used for logging, formatting, reply, and flavour strings."""
 DATABASE_PATH: str = "/private/jukebox.db"
 """Relative path to database file used to store usage history."""
 TEMP_DIR: str = "/private/temp"

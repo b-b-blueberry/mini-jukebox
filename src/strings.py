@@ -12,8 +12,9 @@ References:
 import json
 from typing import Dict, Optional
 
+from src.config import STRINGS_PATH
 
-STRINGS_PATH = "/jukebox/assets/strings.json"
+
 with open(file=STRINGS_PATH, mode="r", encoding="utf8") as strings_file:
     _data: Dict[str, str] = json.load(strings_file)
 
