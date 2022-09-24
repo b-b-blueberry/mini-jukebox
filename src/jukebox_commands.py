@@ -51,6 +51,7 @@ class Vote:
     # Values
 
     votes: Dict[discord.Message, "Vote"] = {}
+    """Map of current votes keyed by their respective messages."""
 
     # Constants
 
@@ -58,19 +59,30 @@ class Vote:
     VOTE_DELETE: int = 2
     VOTE_WIPE: int = 3
     VOTE_RATIO: float = 0.3
+    """Ratio of votes, for or against, to current listeners in order for a vote to be completed."""
 
     # Init
 
     def __init__(self, vote_type: int, allow_no: bool, extra_data: any = None, end_func: any = None) -> None:
         self.vote_type: int = vote_type
+        """Type of vote being initiated."""
         self.allow_no: bool = allow_no
+        """Whether the vote may be vetoed by people voting against it."""
         self.vote_data: any = extra_data
+        """Any additional data to be parsed by the vote finaliser."""
         self.end_func: any = end_func
+        """Function finalising the vote after vote succeeds, whether for or against."""
 
     # Utility functions
 
     @classmethod
-    async def start_vote(cls, ctx: Context, vote, start_msg: str) -> None:
+    async def start_vote(cls, ctx: Context, vote: "Vote", start_msg: str) -> None:
+        """
+        Creates a message for a given vote and prepares reactions for users to add to.
+        :param ctx:
+        :param vote:
+        :param start_msg: String to use as a subtitle in the vote message.
+        """
         if any(v.vote_type == vote.vote_type for v in Vote.votes.values()):
             msg: str = strings.get("info_vote_in_progress")
             await ctx.reply(content=msg)
@@ -85,6 +97,10 @@ class Vote:
 
     @classmethod
     async def check_vote(cls, reaction: discord.Reaction) -> None:
+        """
+        Checks whether a vote is completed based on a given reaction, and if so, runs its on-end function.
+        :param reaction: Reaction object with emoji and number of reactions used to check vote progress.
+        """
         vote: Vote = cls.votes.get(reaction.message)
         if vote:
             vote_count = reaction.count - 1  # We subtract 1 to discount this bots original reaction
@@ -106,6 +122,9 @@ class Vote:
 
     @classmethod
     async def clear_votes(cls) -> None:
+        """
+        Clears all current votes, replacing their respective messages with a self-destructing notice.
+        """
         for message in cls.votes.keys():
             await message.edit(
                 content=strings.get("info_vote_expire"),
@@ -114,6 +133,9 @@ class Vote:
 
     @classmethod
     def required_votes(cls) -> int:
+        """
+        Gets the number of votes, for or against, required for a vote to be completed.
+        """
         return ceil(jukebox.num_listeners() * cls.VOTE_RATIO)
 
     # Runtime events
@@ -135,15 +157,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     # Values
 
     is_blocking_commands: bool = False
+    """Whether commands are blocked for non-admin users."""
 
     # Constants
 
     ERROR_BAD_PARAMS: str = "Bad command paramters: {0}"
+    """Error string for commands with invalid parameters."""
 
     # Init
 
     def __init__(self, bot: commands.Bot):
         self.bot: commands.Bot = bot
+        """Main bot instance."""
 
     # Default user commands
 
@@ -151,6 +176,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def add(self, ctx: Context, *, query: str = None) -> None:
+        """
+        Adds a track to the tail of the queue, searching online for a given query to source audio.
+        :param ctx:
+        :param query: A URL or generic search for the default configured domains for artist, album, or song title.
+        """
         msg: str = None
         starting_from_empty: bool = jukebox.is_empty()
         # Assume number values are user error
@@ -276,6 +306,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def skip(self, ctx: Context, skip_count: int = 1) -> None:
+        """
+        Removes a given number of tracks from the head of the queue.
+        :param ctx:
+        :param skip_count: Number of tracks to remove.
+        """
         msg: str = None
         async with ctx.typing():
             if jukebox.is_empty():
@@ -285,7 +320,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
                 if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False) \
                         or Vote.required_votes() <= 1:
-                    await self._after_skip_vote(
+                    await self._do_skip(
                         ctx=ctx,
                         extra_data=tracks)
                 elif await is_trusted(ctx=ctx, send_message=False):
@@ -296,7 +331,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         vote_type=Vote.VOTE_SKIP,
                         allow_no=False,
                         extra_data=tracks,
-                        end_func=self._after_skip_vote)
+                        end_func=self._do_skip)
                     await Vote.start_vote(
                         ctx=ctx,
                         vote=vote,
@@ -312,6 +347,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def delete(self, ctx: Context, index: int = 1) -> None:
+        """
+        Removes a track from the queue.
+        :param ctx:
+        :param index: Index of the track to remove from the queue.
+        Index is user-facing, starting from 1, adjusted for row-major traversal.
+        """
         index -= 1
         track: JukeboxItem = jukebox.get_item_by_index(index=index)
         if not track:
@@ -323,7 +364,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg = strings.get("jukebox_empty").format(emoji)
             elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
                     or Vote.required_votes() <= 1:
-                await self._after_delete_vote(
+                await self._do_delete(
                     ctx=ctx,
                     extra_data=index)
             elif await is_trusted(ctx=ctx, send_message=False):
@@ -335,7 +376,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         vote_type=Vote.VOTE_DELETE,
                         allow_no=False,
                         extra_data=index,
-                        end_func=self._after_delete_vote)
+                        end_func=self._do_delete)
                 await Vote.start_vote(
                     ctx=ctx,
                     vote=vote,
@@ -351,6 +392,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def wipe(self, ctx: Context, *, query: str = None) -> None:
+        """
+        Removes all tracks added by a given user from the queue.
+        :param ctx:
+        :param query: A generic search query for users by name or ID, defaults to the command user.
+        """
         msg: str = None
         async with ctx.typing():
             try:
@@ -376,7 +422,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         or all(track.added_by.id == ctx.author.id for track in tracks) \
                         or Vote.required_votes() <= 1:
                     # For queue-owner and admin calls, wipe the queue immediately
-                    await self._after_wipe_vote(
+                    await self._do_wipe(
                         ctx=ctx,
                         extra_data=tracks)
                 elif await is_trusted(ctx=ctx, send_message=False):
@@ -389,7 +435,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         vote_type=Vote.VOTE_WIPE,
                         allow_no=False,
                         extra_data=tracks,
-                        end_func=self._after_wipe_vote)
+                        end_func=self._do_wipe)
                     await Vote.start_vote(
                         ctx=ctx,
                         vote=vote,
@@ -406,6 +452,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="queue", aliases=["q"])
     @commands.check(is_default)
     async def print_all(self, ctx: Context, page_num: Union[str, int] = "1") -> None:
+        """
+        Generate a formatted embed with info for a paginated set of tracks from the queue to send in the command channel.
+        :param ctx:
+        :param page_num: Page number to print from paginated queue.
+        """
         async with ctx.typing():
             msg: str = None
             embed: Optional[discord.Embed] = None
@@ -484,9 +535,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="current", aliases=["e"])
     @commands.check(is_default)
     async def print_current(self, ctx: Context) -> None:
+        """
+        Fetch a formatted embed for the currently-playing track to send in the command channel.
+        """
         msg: Optional[str]
         embed: Optional[discord.Embed]
-        msg, embed = self.print_track(guild=ctx.guild)
+        msg, embed = self.get_current_track_info(guild=ctx.guild)
         if embed:
             embed.colour = ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
         if msg or embed:
@@ -497,6 +551,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def lyrics(self, ctx: Context, *, query: str = None) -> None:
+        """
+        Fetch lyrics for a given index or search query and generate a formatted embed.
+        :param ctx:
+        :param query: A generic search query relating to an artist, album, or song title.
+        """
         msg: str = None
         embed: Optional[discord.Embed] = None
         if query and query.isdigit():
@@ -572,6 +631,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_default)
     @commands.check(is_voice_only)
     async def shuffle(self, ctx: Context) -> None:
+        """
+        Shuffles the queue in-place, stopping the currently-playing track and restarting with the new current track.
+        """
         async with ctx.typing():
             msg: str = None
             queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
@@ -596,6 +658,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
     async def toggle_pause(self, ctx: Context) -> None:
+        """
+        Pauses or resumes the currently-playing track with no change to the tracking.
+        """
         async with ctx.typing():
             msg: str = None
             current: JukeboxItem = jukebox.current_track()
@@ -631,6 +696,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
     async def toggle_loop(self, ctx: Context) -> None:
+        """
+        Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.
+        """
         jukebox.repeat()
         msg: str = strings.get("status_looping").format(
             strings.get("on")
@@ -645,6 +713,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="refresh", aliases=["z"])
     @commands.check(is_admin)
     async def refresh_commands(self, ctx: Context) -> None:
+        """
+        Reloads the commands extension, reapplying code changes and reloading the strings data file.
+        """
         print("Refreshing commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -655,6 +726,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="exit", aliases=["x"])
     @commands.check(is_admin)
     async def exit(self, ctx: Context) -> None:
+        """
+        Removes the bot from the voice channel and stops the currently-playing track.
+        """
         print("Exiting voice with {3} listeners. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -668,6 +742,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="cleartracks", aliases=["c"], hidden=True)
     @commands.check(is_admin)
     async def clear_tracks(self, ctx: Context) -> None:
+        """
+        Clears any tracks from the queue without running their after-play behaviours.
+        Also clears temp files and folders.
+        """
         print("Clearing {3} tracks. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -679,6 +757,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="clearvotes", aliases=["v"], hidden=True)
     @commands.check(is_admin)
     async def clear_votes(self, ctx: Context) -> None:
+        """
+        Clears any current votes without running their after-vote behaviours.
+        """
         print("Clearing {3} votes. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -690,6 +771,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="block", aliases=["b"])
     @commands.check(is_admin)
     async def block_commands(self, ctx: Context) -> None:
+        """
+        Block all commands from being used by non-admin users.
+        """
         print("Blocking commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -700,6 +784,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="unblock", aliases=["n"])
     @commands.check(is_admin)
     async def unblock_commands(self, ctx: Context) -> None:
+        """
+        Unblock commands, re-enabling the jukebox for non-admin users.
+        """
         print("Unblocking commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -710,6 +797,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="mango", aliases=["m"])
     @commands.check(is_admin)
     async def activate_mango(self, ctx: Context) -> None:
+        """
+        Activates mango.
+        """
         print("Activating mango. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
@@ -719,6 +809,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
     async def test_string(self, ctx: Context, string: str) -> None:
+        """
+        Test strings without formatting in the command channel.
+        :param string: Key of string in strings data file.
+        """
         msg: str = strings.get(string)
         await ctx.reply(content="{0}: {1}".format(string, msg)
                         if msg
@@ -726,7 +820,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Vote finalisers
 
-    async def _after_skip_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data: any = None, end_msg: str = "{0}") -> None:
+    async def _do_skip(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
+                       extra_data: Optional[List[JukeboxItem]] = None, end_msg: str = "{0}") -> None:
+        """
+        Behaviours for handling a skip request.
+        On success, a number of tracks will be removed from the head of the queue.
+        :param ctx:
+        :param vote: Vote for this action, if one exists.
+        :param success: Whether to carry out the skip action.
+        :param extra_data: List of tracks to be skipped, if no vote exists.
+        :param end_msg: String to use as a subtitle in the vote-ended message.
+        """
         msg: str = None
         if success:
             tracks: List[JukeboxItem] = vote.vote_data if vote else extra_data
@@ -740,7 +844,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
 
-    async def _after_delete_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data: any = None, end_msg: str = "{0}") -> None:
+    async def _do_delete(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
+                         extra_data: Optional[int] = None, end_msg: str = "{0}") -> None:
+        """
+        Behaviours for handling a delete request.
+        On success, a single track at a given index will be removed from the queue.
+        :param ctx:
+        :param vote: Vote for this action, if one exists.
+        :param success: Whether to carry out the delete action..
+        :param extra_data: User-facing index (row-major) of item to be removed, if no vote exists.
+        :param end_msg: String to use as a subtitle in the vote-ended message.
+        """
         msg: str = None
         if success:
             index: int = vote.vote_data if vote else extra_data
@@ -761,7 +875,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
 
-    async def _after_wipe_vote(self, ctx: Context, vote: Vote = None, success: bool = True, extra_data=None, end_msg="{0}") -> None:
+    async def _do_wipe(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
+                       extra_data: Optional[List[JukeboxItem]] = None, end_msg: str = "{0}") -> None:
+        """
+        Behaviours for handling a wipe request.
+        On success, all tracks added by a certain user will be removed from the queue.
+        :param ctx:
+        :param vote: Vote for this action, if one exists.
+        :param success: Whether to carry out the wipe action.
+        :param extra_data: List of tracks to be removed, if no vote exists.
+        :param end_msg: String to use as a subtitle in the vote-ended message.
+        """
         msg: str = None
         if success:
             tracks = vote.vote_data if vote else extra_data
@@ -778,6 +902,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await self._after_vote(ctx=ctx)
 
     async def _after_vote(self, ctx: Context):
+        """
+        Logic and cleanup called once any vote ends.
+        """
         if any(Vote.votes):
             msg: str = strings.get("info_vote_collection_modified").format(len(Vote.votes))
             await ctx.send(content=msg)
@@ -785,7 +912,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Command utilities
 
-    def print_track(self, guild: discord.Guild) -> (Optional[str], Optional[discord.Embed]):
+    def get_current_track_info(self, guild: discord.Guild) -> (Optional[str], Optional[discord.Embed]):
+        """
+        Generates an embed preview for the currently-playing track in the queue.
+        :param guild: Discord server to use for role checks.
+        """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
         current: JukeboxItem = jukebox.current_track()
@@ -823,6 +954,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         return msg, embed
 
     async def ensure_voice(self) -> None:
+        """
+        Attempts to join the configured voice channel.
+        """
         voice_channel: discord.VoiceChannel = self.bot.get_channel(config.CHANNEL_VOICE)
         if not isinstance(jukebox.voice_client, discord.VoiceClient) \
                 or not jukebox.voice_client.is_connected() \
@@ -840,6 +974,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             raise Exception(strings.get("error_voice_not_found"))
 
     async def after_play(self) -> None:
+        """
+        Logic and cleanup to be run after the currently-playing track is removed from the queue.
+        """
         # Clear votes
         await Vote.clear_votes()
 
@@ -847,7 +984,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
         msg: Optional[str]
         embed: Optional[discord.Embed]
-        msg, embed = self.print_track(guild=channel.guild)
+        msg, embed = self.get_current_track_info(guild=channel.guild)
         if msg or embed:
             await channel.send(content=msg, embed=embed)
 
@@ -856,10 +993,16 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
 
 def bytes_to_mib(b: int) -> float:
+    """
+    Conversion of bytes to mebibytes.
+    """
     return b / 1048576
 
 
 def format_duration(sec: int, is_playlist: bool = False) -> str:
+    """
+    Formats a duration in seconds for playlists and playlist items.
+    """
     return datetime.utcfromtimestamp(sec) \
         .strftime(strings.get("datetime_format_playlist")
                   if is_playlist

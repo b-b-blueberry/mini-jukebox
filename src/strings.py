@@ -10,11 +10,12 @@ References:
 """
 
 import json
+from typing import Dict, Optional
 
 
 STRINGS_PATH = "./assets/strings.json"
 with open(file=STRINGS_PATH, mode="r", encoding="utf8") as strings_file:
-    _data = json.load(strings_file)
+    _data: Dict[str, str] = json.load(strings_file)
 
 
 emoji_mod_keycap = "\u20E3"
@@ -57,5 +58,6 @@ emoji_digits = [
 ]
 
 
-def get(__name: str):
+def get(__name: str) -> Optional[str]:
+    """Fetches a given string from the strings data file."""
     return _data.get(__name)

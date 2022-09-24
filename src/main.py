@@ -15,6 +15,7 @@ Contents:
     Global commands
     Startup
 """
+
 from importlib import reload
 
 import discord
@@ -31,10 +32,17 @@ from jukebox_impl import jukebox
 
 
 class MusicBot(Bot):
+    """
+    Bot used for running a jukebox service in a given voice channel, taking commands from a separate text channel.
+    """
 
     # Help commands
 
     class MusicHelpCommand(HelpCommand):
+        """
+        Override of HelpCommand to redirect to some default help docs.
+        """
+
         async def send_bot_help(self, ctx: Context) -> None:
             await self._send_help()
 
@@ -48,6 +56,9 @@ class MusicBot(Bot):
             await self._send_help()
 
         async def _send_help(self) -> None:
+            """
+            Sends a basic help prompt.
+            """
             text_channel = self.get_destination()
             await text_channel.send(strings.get("info_help").format(
                 text_channel.mention,
@@ -66,11 +77,17 @@ class MusicBot(Bot):
     # Bot events
 
     async def setup_hook(self) -> None:
+        """
+        Inherited from Client. Called once internally after login. Used to load all initial command extensions.
+        """
         # Load required extensions
         await self.load_extension(name=jukebox_commands.__name__)
         jukebox.bot = self
 
     async def on_ready(self) -> None:
+        """
+        Inherited from Client. Called once internally after all setup. Used only to log notice.
+        """
         msg = strings.get("log_console_client_ready").format(
             self.user.name,
             self.user.discriminator,
@@ -87,10 +104,16 @@ class MusicBot(Bot):
             await channel.send(content=msg)
 
     async def on_command(self, ctx: Context) -> None:
+        """
+        Additional behaviours on commands used to vet or audit commands.
+        """
         # Log all used jukebox commands for auditing
         await self.log_command(ctx=ctx)
 
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
+        """
+        Additional behaviours on errors using commands to either suppress, react, or reply.
+        """
         # Add a reaction to posts with unknown commands or invalid uses
         msg = None
         reaction = None
@@ -118,17 +141,26 @@ class MusicBot(Bot):
                 await ctx.message.add_reaction(reaction)
 
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
+        """
+        Update bot state based on listeners in voice channel.
+        """
         # Stop playing music and leave the voice channel if all other users have disconnected
         if jukebox.voice_client and before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
             jukebox.stop()
             await jukebox.voice_client.disconnect()
 
     def reload_strings(self) -> None:
+        """
+        Reloads all text strings from data file for bot commands and interactions.
+        """
         reload(strings)
 
     # Bot utilities
 
     async def log_command(self, ctx: Context) -> None:
+        """
+        Log commands-used to the console and/or logging channel for auditing.
+        """
         if await is_valid_command_use(ctx=ctx):
             user = ctx.message.author
             if config.LOGGING_CONSOLE:
@@ -155,6 +187,7 @@ class MusicBot(Bot):
 
 
 bot = MusicBot()
+"""Main instance of the bot."""
 
 
 # Global commands
@@ -162,6 +195,9 @@ bot = MusicBot()
 
 @bot.check
 async def is_valid_command_use(ctx: Context) -> bool:
+    """
+    Global check to determine whether a given command should be processed.
+    """
     # Ignore commands from bots
     is_not_bot: bool = not ctx.author.bot
 
@@ -176,7 +212,7 @@ async def is_valid_command_use(ctx: Context) -> bool:
     return is_not_bot and is_channel_ok and is_not_blocked
 
 
-# Startup
+# Discord.py boilerplate
 
 
 # Run bot
