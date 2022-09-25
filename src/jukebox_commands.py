@@ -486,7 +486,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
                 # Print playlist by elements for the selected (or default) page
                 msg_lines: List[str] = []
-                current: JukeboxItem = queue[0]
+                current: JukeboxItem = jukebox.current_track()
 
                 # aggregated tracks
                 index_start: int = pagination_count * page_num

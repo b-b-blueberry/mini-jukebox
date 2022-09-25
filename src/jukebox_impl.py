@@ -244,7 +244,7 @@ class Jukebox:
         Fetch an item in the queue by its user-facing (row-major) index.
         :param index: Queue index to fetch item at.
         """
-        if not any(self._multiqueue):
+        if not any(self._multiqueue) or index < 0 or index >= len(self.get_all()):
             return None
 
         if not config.PLAYLIST_MULTIQUEUE:
@@ -317,18 +317,20 @@ class Jukebox:
         """
         try:
             queue: List[JukeboxItem] = self.get_queue(item.added_by.id)
-            if from_after_play or not self.voice_client or not self.voice_client.is_playing():
-                # Remove tracks not currently being played
-                queue.remove(item)
+            queue.remove(item)
+
+            if is_deleting and not config.PLAYLIST_STREAMING:
                 # Remove downloaded audio files from disk
-                if is_deleting and not config.PLAYLIST_STREAMING:
-                    os.remove(item.source)
-            else:
-                # Remove the currently-playing track from the queue
-                # Stop the voice client if playing, triggering self._after_play
-                self.stop()
-            # Remove the item's queue from the multiqueue if empty
-            if not any(queue):
+                os.remove(item.source)
+
+            if from_after_play or item == self.current_track():
+                if self.voice_client and self.voice_client.is_playing():
+                    # Remove the currently-playing track from the queue
+                    # Stop the voice client if playing, triggering self._after_play
+                    self.stop()
+
+            if config.PLAYLIST_MULTIQUEUE and not any(queue):
+                # Remove the item's queue from the multiqueue if empty
                 if self._multiqueue.index(queue) < self._multiqueue_index:
                     # Adjust queue index when removing a queue with a lower index than the current
                     self._multiqueue_index -= 1
