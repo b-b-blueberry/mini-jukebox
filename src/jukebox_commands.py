@@ -242,20 +242,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         else:
                             # Check for excessively large track lists
                             playlist_duration: int = sum([int(track.get("duration", 0)) for track in playlist_info])
-                            playlist_filesize: float = bytes_to_mib(sum([track.get("filesize", 0) for track in playlist_info]))
-                            playlist_oversize: bool = playlist_duration > config.PLAYLIST_DURATION_WARNING \
-                                or playlist_filesize > config.PLAYLIST_FILESIZE_WARNING \
-                                or len(playlist_info) > config.PLAYLIST_LENGTH_WARNING
-
-                            # Post a notice if delays are expected
-                            if not config.PLAYLIST_STREAMING and playlist_oversize:
-                                temp_msg: str = strings.get("info_large_download").format(
-                                    len(playlist_info),
-                                    format_duration(sec=playlist_duration, is_playlist=True),
-                                    playlist_filesize
-                                    if playlist_filesize > 0
-                                    else strings.get("info_unknown"))
-                                await ctx.reply(content=temp_msg)
 
                             # Prepare the playlist audio files
                             playlist_items = await jukebox_impl.YTDLSource.get_playlist_files(

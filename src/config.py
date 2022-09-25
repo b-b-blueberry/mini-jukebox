@@ -111,12 +111,6 @@ PLAYLIST_STREAMING: bool = cfg["jukebox"]["streaming_enabled"]
 """Whether media data will be streamed from external sources, or preloaded and sourced from local drive."""
 TRACK_DURATION_LIMIT: int = cfg["jukebox"]["track_duration_limit_seconds"]
 """Duration in seconds for track runtime before being blocked from the queue."""
-PLAYLIST_LENGTH_WARNING: int = cfg["jukebox"]["total_tracks_warning_len"]
-"""Number of tracks before a warning message is posted in command channel."""
-PLAYLIST_DURATION_WARNING: int = cfg["jukebox"]["total_duration_warning_seconds"]
-"""Duration in seconds for playlist runtime before a warning message is posted in command channel."""
-PLAYLIST_FILESIZE_WARNING: int = cfg["jukebox"]["total_filesize_warning_mebibytes"]
-"""Filesize in mebibytes for playlist before a warning message is posted in command channel."""
 
 # YTDL
 
