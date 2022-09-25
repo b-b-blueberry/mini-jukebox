@@ -191,6 +191,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         if query and query.isdigit():
             raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
 
+        # Resolve query
+        query = self.parse_query(query=query)
+
         async with ctx.typing():
             try:
                 if not query:
@@ -554,21 +557,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
 
-        if query and query.isdigit():
-            # Number queries are treated as a search by index
-            index: int = int(query)
-            # Treat user search queries as 1-indexed
-            if index < 1 or index > jukebox.num_tracks():
-                raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
-            query = jukebox.get_item_by_index(index=index - 1).title
-
         async with ctx.typing():
-            if not query:
-                if jukebox.is_empty():
-                    embed = self.get_empty_queue_embed(guild=ctx.guild)
-                else:
-                    query = jukebox.current_track().title
-
+            # Resolve query
+            query = self.parse_query(query=query)
+            if not query and jukebox.is_empty():
+                embed = self.get_empty_queue_embed(guild=ctx.guild)
             async with aiohttp.ClientSession() as session:
                 query_url: str = "https://api.yodabot.xyz/api/lyrics/search"
                 params: dict = {"q": query}
@@ -877,6 +870,30 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await Vote.clear_votes()
 
     # Command utilities
+
+    def parse_query(self, query: any) -> any:
+        """
+        Fixes up a given search query.
+        """
+        current: JukeboxItem = jukebox.current_track()
+        remove_chars: str = "<>"
+
+        if query:
+            # Strip chars to be removed from query
+            query = "".join([c for c in query if c not in remove_chars])
+
+        if query and query.isdigit():
+            # Treat digit queries as a queue index, assuming they're starting from 1
+            index: int = int(query)
+            if index < 1 or index > jukebox.num_tracks():
+                raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
+            query = jukebox.get_item_by_index(index=index - 1).title
+
+        if not query and current:
+            # Default to the current track name
+            query = current.title
+
+        return query
 
     def get_current_track_embed(self, guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
         """
