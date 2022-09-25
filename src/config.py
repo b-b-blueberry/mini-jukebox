@@ -48,8 +48,6 @@ with open(file=CONFIG_PATH, mode="r") as config_file:
 
 TOKEN_DISCORD: str = cfg["tokens"]["discord"]
 """Token used to run Discord client."""
-TOKEN_LYRICS: str = cfg["tokens"]["azlyrics"]
-"""Token used to run lyrics queries."""
 
 # Discord
 

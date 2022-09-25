@@ -552,6 +552,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
+        timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
+
         if query and query.isdigit():
             # Number queries are treated as a search by index
             index: int = int(query)
@@ -559,61 +561,43 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if index < 1 or index > jukebox.num_tracks():
                 raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
             query = jukebox.get_item_by_index(index=index - 1).title
+
         async with ctx.typing():
             if not query:
                 if jukebox.is_empty():
                     embed = self.get_empty_queue_embed(guild=ctx.guild)
                 else:
                     query = jukebox.current_track().title
-            if not msg:
-                query_url: str = "https://search.azlyrics.com/search.php?q={0}&x={1}".format(query, config.TOKEN_LYRICS)
-                timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
-                result_url: Optional[str] = None
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url=query_url, timeout=timeout) as response:
-                        if response.status != 200:
-                            msg = strings.get("error_http_status_code").format(
-                                f"{response.status} {responses[response.status]}")
-                        else:
-                            try:
-                                html_text: str = await response.text()
-                                html = BeautifulSoup(markup=html_text, features="html.parser")
-                                result_url = html \
-                                    .find(class_="container main-page", recursive=True) \
-                                    .find(href=True, recursive=True) \
-                                    .attrs.get("href")
-                            except AttributeError:
-                                pass
-                    if not result_url:
-                        msg = strings.get("error_lyrics_not_found").format(query)
+
+            async with aiohttp.ClientSession() as session:
+                query_url: str = "https://api.yodabot.xyz/api/lyrics/search"
+                params: dict = {"q": query}
+                async with session.get(url=query_url, params=params, timeout=timeout) as response:
+                    if response.status != 200:
+                        msg = strings.get("error_http_status_code").format(
+                            f"{response.status} {responses[response.status]}")
                     else:
-                        async with session.get(url=result_url, timeout=timeout) as response:
-                            if not response.ok:
-                                msg = strings.get("error_http_status_code").format(
-                                    f"{response.status} {responses[response.status]}")
-                            else:
-                                html_text: str = await response.text()
-                                html = BeautifulSoup(markup=html_text, features="html.parser")
-                                html_heading = html.find(class_="lyricsh", recursive=True)
-                                header: str = html_heading.find(name="b", recursive=True).text
-                                html_subheading = html_heading.parent.find(name="b", recursive=False)
-                                title: str = html_subheading.text
-                                text: str = html_subheading.find_next_sibling(name="div").text
-                                text = text[:1750] + "..." \
-                                    if len(text) > 1750 \
-                                    else text
-                                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
-                                embed = discord.Embed(
-                                    title=title,
-                                    description=text,
-                                    colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
-                                    url=result_url)
-                                embed \
-                                    .set_author(name=header) \
-                                    .set_footer(
-                                        text=response.url.host,
-                                        icon_url="https://images.azlyrics.com/az_logo_tr.png") \
-                                    .set_thumbnail(url=emoji.url)
+                        json = await response.json()
+                        if not json:
+                            msg = strings.get("error_lyrics_not_found").format(query)
+                        else:
+                            heading: str = json['artist']
+                            title: str = json['title']
+                            text: str = json['lyrics']
+                            text = text[:1750] + "..." \
+                                if len(text) > 1750 \
+                                else text
+                            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
+                            embed = discord.Embed(
+                                title=title,
+                                description=text,
+                                colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
+                            embed \
+                                .set_author(name=heading) \
+                                .set_footer(
+                                    text=response.url.host,
+                                    icon_url="https://api.yodabot.xyz/assets/transparent-yoda.png") \
+                                .set_thumbnail(url=emoji.url)
 
             if msg or embed:
                 await ctx.reply(
