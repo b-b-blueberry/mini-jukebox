@@ -355,6 +355,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         track: JukeboxItem = jukebox.get_item_by_index(index=index)
         if not track:
             raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(index))
+
         msg: Optional[str] = None
         async with ctx.typing():
             if jukebox.is_empty():
@@ -458,13 +459,14 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if jukebox.is_empty():
                 embed = self.get_empty_queue_embed(guild=ctx.guild)
             else:
-                queue: List[JukeboxItem] = jukebox.get_all()
+                queue_length: int = jukebox.num_tracks()
+                queue_duration: str = format_duration(sec=sum([track.duration for track in jukebox.get_all()]), is_playlist=True)
 
                 # Pagination is bounded to length of the playlist
                 pagination_count: int = 10
-                page_max: int = ceil(len(queue) / pagination_count)
+                page_max: int = ceil(queue_length / pagination_count)
                 page_num = int(page_num)
-                if page_num * pagination_count > len(queue):
+                if page_num * pagination_count > queue_length:
                     page_num = page_max
                 if page_num < 1:
                     page_num = 1
@@ -480,10 +482,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=index_start, index_end=index_end)
                 track_msgs: List[str] = [strings.get("jukebox_queue_item").format(
                     index_start + i + 1,
-                    format_duration(sec=item.duration),
-                    item.added_by.mention,
-                    item.title)
-                        for i, item in enumerate(iterable=tracks)]
+                    format_duration(sec=track.duration),
+                    track.added_by.mention,
+                    track.title)
+                        for i, track in enumerate(iterable=tracks)]
 
                 # currently-playing track
                 title: str = strings.get("jukebox_title").format(
@@ -501,8 +503,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                                                              strings.emoji_repeat))
                 # queue summary
                 footer: str = strings.get("jukebox_queue_footer").format(
-                    len(queue),
-                    format_duration(sec=sum([i.duration for i in queue]), is_playlist=True),
+                    queue_length,
+                    queue_duration,
                     page_num + 1,
                     page_max)
 
@@ -803,15 +805,15 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: str = None
         if success:
             index: int = vote.vote_data if vote else extra_data
-            item: JukeboxItem = jukebox.get_item_by_index(index=index)
-            if item:
+            track: JukeboxItem = jukebox.get_item_by_index(index=index)
+            if track:
                 jukebox.remove(
-                    item=item,
-                    is_deleting=jukebox.is_repeating)
+                    item=track,
+                    is_deleting=not jukebox.is_repeating)
                 msg = strings.get("info_delete_success").format(
-                    item.title,
-                    format_duration(sec=item.duration),
-                    item.added_by.mention,
+                    track.title,
+                    format_duration(sec=track.duration),
+                    track.added_by.mention,
                     index + 1,
                     strings.emoji_next)
         else:
