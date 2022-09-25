@@ -478,8 +478,17 @@ class Jukebox:
         """
         Gets the track at the head of the queue.
         """
-        queue: List[JukeboxItem] = self.get_queue()
-        return queue[0] if any(queue) else None
+        if self.is_empty():
+            return None
+
+        x_max: int = len(self._multiqueue)
+        y_max: int = max([len(queue) for queue in self._multiqueue])
+        for y in range(0, y_max):
+            for x in range(0, x_max):
+                if y >= len(self._multiqueue[x]):
+                    continue
+                if self._multiqueue[x][y]:
+                    return self._multiqueue[x][y]
 
     def num_tracks(self) -> int:
         """

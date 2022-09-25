@@ -886,20 +886,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         :param description: Description to use in place of generic text.
         """
         embed: discord.Embed
-        if jukebox.is_empty():
+        current: JukeboxItem = jukebox.current_track()
+        if not current:
             # Show embed for empty queue
             embed = self.get_empty_queue_embed(guild=guild)
         else:
             # Show info about the currently-playing track
-            current: JukeboxItem = jukebox.current_track()
-
-            # currently-playing track
             title: str = strings.get("jukebox_title").format(
                 strings.get("status_playing").format(current.title, strings.emoji_play)
                 if jukebox.voice_client and jukebox.voice_client.is_playing()
                 else strings.get("status_paused").format(current.title, strings.emoji_pause))
 
-            if show_tracking:
+            if show_tracking and current.audio:
                 # track progress bar
                 tracking_str: list = ["▬"] * min(14, max(6, len(current.title) - 6))
                 tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
@@ -914,7 +912,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 # added-by user
                 description = strings.get("jukebox_current_added_by").format(
                     current.added_by.mention,
-                    format_duration(sec=current.audio.duration()))
+                    format_duration(sec=current.duration))
 
             # queue summary
             emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
