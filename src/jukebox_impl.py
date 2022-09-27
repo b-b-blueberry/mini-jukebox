@@ -58,13 +58,13 @@ class TrackingAudio(FFmpegPCMAudio):
 
     def progress(self) -> int:
         """
-        Gets current track progress.
+        Gets current track progress in seconds.
         """
         return round(self._ms_current / 1000)
 
     def duration(self) -> int:
         """
-        Gets track duration.
+        Gets track duration in seconds.
         """
         return self._sec_total
 
@@ -80,7 +80,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     Audio transform override for handling YTDLP connections.
     """
     @classmethod
-    async def get_playlist_info(cls, query: str, *, loop: AbstractEventLoop = None) -> (List[dict], Optional[str], Optional[str], int):
+    async def get_playlist_info(cls, query: str, *, loop: AbstractEventLoop = None, ambiguous: bool = False) -> any:
         """
         Fetch playlist info for a search query or URL, returning media metadata and source URL on success.
         :param query: A generic search query or URL to use with YTDLP, searching queries with the default domain.
@@ -92,32 +92,36 @@ class YTDLSource(discord.PCMVolumeTransformer):
         loop = loop or asyncio.get_event_loop()
 
         # Process and download track metadata where available
-        playlist_info: List[dict] = []
-        playlist_title: Optional[str] = None
-        response_url: Optional[str] = None
+        entries: List[dict] = []
+        title: Optional[str] = None
+        source: Optional[str] = None
         num_failed: int = 0
-        response: Optional[dict] = None
-        response = await loop.run_in_executor(
+
+        response: Optional[dict] = await loop.run_in_executor(
             executor=None,
             func=lambda: ytdlconn.extract_info(
-                url=query,
-                download=not config.PLAYLIST_STREAMING))
-        if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
-            response_url = None if not response \
-                            else response.get("url") if "url" in response.keys() \
-                            else response.get("entries")[0].get("url") \
-                            if any(response.get("entries")) \
-                            else None
-            if config.LOGGING_CONSOLE:
-                print(strings.get("log_console_media_response").format(response_url))
+                url=query if not ambiguous else f"ytsearch5:{query}",
+                download=not ambiguous and not config.PLAYLIST_STREAMING))
+
+        # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
+        entries = response.get("entries") if "entries" in response else [response]
+
         if response:
-            playlist_title = response.get("title") if "title" in response else None
-            # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
-            playlist_info = response.get("entries") if "entries" in response else [response]
-            # Trim out failed downloads from the playlist
-            num_failed = sum(not entry for entry in playlist_info)
-            playlist_info = [entry for entry in playlist_info if entry]
-        return playlist_info, playlist_title, response_url, num_failed
+            # Fetch relevant fields from response and trim out failed downloads from the playlist
+            entries = [entry for entry in entries if entry]
+
+            if ambiguous:
+                return entries
+
+            title = response.get("title") if "title" in response else None
+            source = response.get("url") if "url" in response else None
+            num_failed = len(response.get("entries")) - len(entries)
+
+            if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
+                if config.LOGGING_CONSOLE:
+                    print(strings.get("log_console_media_response").format(source))
+
+        return entries, title, source, num_failed
 
     @classmethod
     async def get_playlist_files(cls, playlist_info, is_streaming: bool, added_by: discord.member) -> List["JukeboxItem"]:
@@ -132,13 +136,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
             # Process and download the track audio
             source = entry.get("url") if is_streaming else ytdlconn.prepare_filename(entry)
             # Add tracks as jukebox queue items
-            playlist_items.append(JukeboxItem(
+            playlist_items.append(YTDLSource.entry_to_track(entry=entry, source=source, added_by=added_by))
+        return playlist_items
+
+    @classmethod
+    def entry_to_track(cls, entry: dict, source: str, added_by: discord.member):
+        return JukeboxItem(
                 source=source,
                 title=entry.get("title"),
                 url=entry.get("original_url"),
                 duration=int(entry.get("duration")),
-                added_by=added_by))
-        return playlist_items
+                added_by=added_by)
 
 
 class JukeboxItem:

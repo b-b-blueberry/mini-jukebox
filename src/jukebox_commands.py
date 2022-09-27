@@ -13,11 +13,13 @@ Contents:
         Runtime events
     Command use restrictions
     Commands
+        Classes
         Constants
         Init
         Default user commands
         Trusted user commands
         Admin commands
+        Runtime events
         Vote finalisers
         Command utilities
     Utility functions
@@ -27,15 +29,14 @@ import random
 from http.client import responses
 from importlib import reload
 from math import ceil, floor
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Any
 
 import aiohttp
 import discord
 import yt_dlp
-from bs4 import BeautifulSoup
 from datetime import datetime
 
-from discord import utils
+from discord import utils, Interaction
 from discord.ext import commands
 from discord.ext.commands import Context
 
@@ -149,11 +150,84 @@ class Vote:
                 and jukebox.is_in_voice_channel(member=user):
             await Vote.check_vote(reaction=reaction)
 
-
 # Commands
 
 
 class Commands(commands.Cog, name=config.COG_COMMANDS):
+    # Classes
+
+    class AmbiguousSearchView(discord.ui.View):
+        """
+        Component view for a track selection menu used with ambiguous search commands.
+        """
+        def __init__(self, entries: List[dict], added_by: discord.User):
+            super().__init__()
+
+            self.added_by = added_by
+            self.add_item(Commands.AmbiguousSearchSelect(entries=entries))
+
+        async def interaction_check(self, interaction: Interaction, /) -> bool:
+            """
+            Override.
+            Search queries can only be fulfilled by the original author.
+            """
+            return self.added_by.id == interaction.user.id
+
+    class AmbiguousSearchSelect(discord.ui.Select):
+        """
+        Component view item for selecting a track from a limited set of similar results.
+        """
+        def __init__(self, entries: List[dict]):
+            self.entries: List[dict] = entries
+
+            options: List[discord.SelectOption] = [discord.SelectOption(
+                label=track.get("title"),
+                value=str(i),
+                description=strings.get("jukebox_found_description").format(
+                    track.get("uploader"),
+                    format_duration(sec=track.get("duration"))),
+                emoji=strings.emoji_digits[i + 1]
+            ) for i, track in enumerate(entries)]
+
+            super().__init__(
+                placeholder=strings.get("jukebox_found_placeholder"),
+                min_values=0,
+                max_values=1,
+                options=options)
+
+        async def callback(self, interaction: Interaction) -> Any:
+            """
+            Override.
+            Handles interactions with track result options in select item.
+            """
+            entry: dict = self.entries[int(self.values[0])]
+            track: JukeboxItem = jukebox_impl.YTDLSource.entry_to_track(entry=entry, source=entry.get("url"), added_by=interaction.user)
+            starting_from_empty: bool = jukebox.is_empty()
+
+            # Join voice channel and start playing
+            jukebox.append(track)
+            await ensure_voice()
+            jukebox.play()
+
+            # Generate embed with track info
+            description: str
+            if starting_from_empty:
+                description = strings.get("jukebox_current_added_by").format(
+                    track.added_by.mention,
+                    format_duration(sec=track.duration))
+            else:
+                index = jukebox.get_index_of_item(item=track)
+                description = strings.get("jukebox_added_one").format(
+                    track.title,
+                    format_duration(sec=track.duration),
+                    index + 1)
+            embed: discord.Embed = get_current_track_embed(
+                guild=interaction.guild,
+                show_tracking=False,
+                description=description)
+            if embed:
+                await interaction.response.edit_message(embed=embed, view=None)
+
     # Values
 
     is_blocking_commands: bool = False
@@ -172,6 +246,52 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Default user commands
 
+    @commands.command(name="add?", aliases=["a?"])
+    @commands.check(is_default)
+    @commands.check(is_voice_only)
+    async def add_ambiguous(self, ctx: Context, *, query: str = None) -> None:
+        """
+        :param ctx:
+        :param query: A URL or generic search for the default configured domains for artist, album, or song title.
+        """
+        msg: Optional[str] = None
+        embed: Optional[discord.Embed] = None
+
+        # Resolve query
+        query = parse_query(query=query)
+
+        async with ctx.typing():
+            try:
+                if not jukebox.is_in_voice_channel(member=ctx.author):
+                    # Users can only play the jukebox if they're in the voice channel
+                    msg = strings.get("error_command_voice_only").format(
+                        self.bot.get_channel(config.CHANNEL_VOICE).mention)
+                else:
+                    # Fetch metadata for tracks based on the given query
+                    entries: List[dict] = await jukebox_impl.YTDLSource.get_playlist_info(
+                        query=query,
+                        loop=self.bot.loop,
+                        ambiguous=True)
+
+                    if not any(entries):
+                        msg = strings.get("error_track").format(query)
+                    else:
+                        title: str = strings.get("jukebox_found_title")
+                        emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_chest"))
+                        embed = discord.Embed(
+                            title=title,
+                            colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
+                        #embed.set_thumbnail(url=emoji.url)
+            except yt_dlp.DownloadError:
+                # Suppress and message download errors
+                msg = strings.get("error_download")
+
+            if embed:
+                view: Commands.AmbiguousSearchView = Commands.AmbiguousSearchView(entries=entries, added_by=ctx.author)
+                await ctx.reply(embed=embed, view=view)
+            elif msg:
+                await ctx.reply(content=msg)
+
     @commands.command(name="add", aliases=["a"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
@@ -187,12 +307,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         current: Optional[JukeboxItem] = None
         starting_from_empty: bool = jukebox.is_empty()
 
-        # Assume number values are user error
+        if not query:
+            raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format("None"))
         if query and query.isdigit():
-            raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
+            # Digit queries search by index in queue to re-add a track
+            current = jukebox.get_item_by_index(index=int(query))
+            if not current:
+                raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
+            else:
+                query = current.title
 
         # Resolve query
-        query = self.parse_query(query=query)
+        query = parse_query(query=query)
 
         async with ctx.typing():
             try:
@@ -200,7 +326,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     # Without a search query, try to resume the last-playing track if paused
                     if starting_from_empty:
                         # Resuming an empty queue does nothing
-                        embed = self.get_empty_queue_embed(guild=ctx.guild)
+                        embed = get_empty_queue_embed(guild=ctx.guild)
                     else:
                         if not jukebox.is_in_voice_channel(member=ctx.author):
                             # Users can only play the jukebox if they're in the voice channel
@@ -209,29 +335,31 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         else:
                             # Playing a populated queue will continue from the current track
                             current = jukebox.current_track()
-                            embed = self.get_current_track_embed(
+                            embed = get_current_track_embed(
                                 guild=ctx.guild,
-                                show_tracking=current.audio.progress() > 5 if current else False)
-                            await self.ensure_voice()
+                                show_tracking=current and current.audio and current.audio.progress() > 5)
+                            await ensure_voice()
                             jukebox.play()
                 else:
                     # Otherwise, try to play a track based on the given URL or search query
-                    playlist_info: List[dict]
-                    playlist_title: str
-                    response_url: str
+                    entries: List[dict]
+                    title: str
+                    source: str
                     num_failed: int
 
                     # Fetch metadata for tracks
-                    playlist_info, playlist_title, response_url, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
+                    entries, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
                         query=query,
                         loop=self.bot.loop)
-                    if not response_url:
+
+                    # Parse results into an embed, add as many tracks as possible
+                    if not source:
                         msg = strings.get("error_track").format(query)
-                    elif not any(playlist_info):
+                    elif not any(entries):
                         msg = strings.get("error_track_one" if num_failed < 2 else "error_track_all")
                     else:
-                        extractor: str = playlist_info[0].get("extractor").split(sep=":")[0] \
-                            if playlist_info[0] and "extractor" in playlist_info[0].keys() \
+                        extractor: str = entries[0].get("extractor").split(sep=":")[0] \
+                            if entries[0] and "extractor" in entries[0].keys() \
                             else None
                         if not extractor:
                             # Check for invalid extractors
@@ -241,11 +369,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             msg = strings.get("error_domain_not_whitelisted").format(extractor)
                         else:
                             # Check for excessively large track lists
-                            playlist_duration: int = sum([int(track.get("duration", 0)) for track in playlist_info])
+                            playlist_duration: int = sum([int(track.get("duration", 0)) for track in entries])
 
                             # Prepare the playlist audio files
                             playlist_items = await jukebox_impl.YTDLSource.get_playlist_files(
-                                playlist_info=playlist_info,
+                                playlist_info=entries,
                                 is_streaming=config.PLAYLIST_STREAMING,
                                 added_by=ctx.author)
 
@@ -265,27 +393,27 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                     format_duration(sec=current.duration))
                             elif num_failed < 1:
                                 description = strings.get("jukebox_current_added_playlist").format(
-                                    playlist_title,
+                                    title,
                                     format_duration(sec=playlist_duration, is_playlist=True),
                                     len(playlist_items))
-                            await self.ensure_voice()
+                            await ensure_voice()
                             jukebox.play()
                         elif len(playlist_items) == 1:
-                            # One track was added to an empty queue
+                            # One track was added to a populated queue
                             description = strings.get("jukebox_added_one").format(
                                 playlist_item.title,
                                 format_duration(sec=playlist_item.duration),
                                 index + 1)
-                        elif 0 < num_failed < len(playlist_info):
+                        elif 0 < num_failed < len(entries):
                             # One or more tracks in a playlist failed to download
                             description = strings.get("jukebox_current_added_playlist").format(
-                                playlist_title,
+                                title,
                                 format_duration(sec=playlist_duration, is_playlist=True),
                                 len(playlist_items)) + "\n" + strings.get("error_track_some").format(num_failed)
                         else:
-                            # Several tracks in a playlist were added to the queue
+                            # Several tracks in a playlist were added to a populated queue
                             description = strings.get("jukebox_added_many").format(
-                                playlist_title,
+                                title,
                                 format_duration(sec=playlist_duration, is_playlist=True),
                                 index + 1,
                                 len(playlist_items))
@@ -293,8 +421,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 # Suppress and message download errors
                 msg = strings.get("error_download")
             if description and not embed:
-                current = jukebox.current_track()
-                embed = self.get_current_track_embed(
+                embed = get_current_track_embed(
                     guild=ctx.guild,
                     show_tracking=False,
                     description=description)
@@ -313,7 +440,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: Optional[str] = None
         async with ctx.typing():
             if jukebox.is_empty():
-                msg = self.get_empty_queue_msg()
+                msg = get_empty_queue_msg()
             else:
                 tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
                 if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False) \
@@ -359,7 +486,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: Optional[str] = None
         async with ctx.typing():
             if jukebox.is_empty():
-                msg = self.get_empty_queue_msg()
+                msg = get_empty_queue_msg()
             elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
                     or Vote.required_votes() <= 1:
                 await self._do_delete(
@@ -407,7 +534,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 # Wipe all tracks from a user in the given queue
                 queue: List[JukeboxItem] = jukebox.get_queue(user_id=user.id)
                 if not any(queue):
-                    msg = self.get_empty_queue_msg()
+                    msg = get_empty_queue_msg()
                 # For multiqueue, we can assume all tracks in a user's queue are their own
                 tracks: List[JukeboxItem] = [track for track in queue if track.added_by.id == user.id] \
                     if not config.PLAYLIST_MULTIQUEUE \
@@ -457,7 +584,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         async with ctx.typing():
             embed: discord.Embed
             if jukebox.is_empty():
-                embed = self.get_empty_queue_embed(guild=ctx.guild)
+                embed = get_empty_queue_embed(guild=ctx.guild)
             else:
                 queue_length: int = jukebox.num_tracks()
                 queue_duration: str = format_duration(sec=sum([track.duration for track in jukebox.get_all()]), is_playlist=True)
@@ -529,7 +656,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Fetch a formatted embed for the currently-playing track to send in the command channel.
         """
-        embed: discord.Embed = self.get_current_track_embed(guild=ctx.guild, show_tracking=True)
+        embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
         await ctx.reply(embed=embed)
 
     @commands.command(name="lyrics", aliases=["l"])
@@ -547,9 +674,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
         async with ctx.typing():
             # Resolve query
-            query = self.parse_query(query=query)
+            query = parse_query(query=query)
             if not query and jukebox.is_empty():
-                embed = self.get_empty_queue_embed(guild=ctx.guild)
+                embed = get_empty_queue_embed(guild=ctx.guild)
             async with aiohttp.ClientSession() as session:
                 query_url: str = "https://api.yodabot.xyz/api/lyrics/search"
                 params: dict = {"q": query}
@@ -597,7 +724,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
             if not any(queue):
                 # Shuffling an empty queue does nothing
-                msg = self.get_empty_queue_msg()
+                msg = get_empty_queue_msg()
             elif len(queue) == 1:
                 # Shuffling a single track also does nothing
                 msg = strings.get("jukebox_shuffled_one").format(
@@ -630,13 +757,13 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 jukebox.pause()
             else:
                 # Playing a populated queue will continue from the current track
-                await self.ensure_voice()
+                await ensure_voice()
                 if jukebox.voice_client.is_paused():
                     jukebox.resume()
                 else:
                     jukebox.play()
 
-            embed: discord.Embed = self.get_current_track_embed(guild=ctx.guild, show_tracking=True)
+            embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
             await ctx.reply(embed=embed)
 
     @commands.command(name="loop", aliases=["o"])
@@ -765,6 +892,20 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         if msg
                         else strings.get("error_string_not_found").format(string))
 
+    # Runtime events
+
+    async def after_play(self) -> None:
+        """
+        Logic and cleanup to be run after the currently-playing track is removed from the queue.
+        """
+        # Clear votes
+        await Vote.clear_votes()
+
+        # Post now-playing update
+        channel: discord.TextChannel = jukebox.bot.get_channel(config.CHANNEL_TEXT)
+        embed: discord.Embed = get_current_track_embed(guild=channel.guild, show_tracking=False)
+        await channel.send(embed=embed)
+
     # Vote finalisers
 
     async def _do_skip(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
@@ -857,136 +998,125 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.send(content=msg)
             await Vote.clear_votes()
 
-    # Command utilities
+# Command utilities
 
-    def parse_query(self, query: any) -> any:
-        """
-        Fixes up a given search query.
-        """
-        current: JukeboxItem = jukebox.current_track()
-        remove_chars: str = "<>"
+def parse_query(query: any) -> any:
+    """
+    Fixes up a given search query.
+    """
+    current: JukeboxItem = jukebox.current_track()
+    remove_chars: str = "<>"
 
-        if query:
-            # Strip chars to be removed from query
-            query = "".join([c for c in query if c not in remove_chars])
+    if query:
+        # Strip chars to be removed from query
+        query = "".join([c for c in query.strip() if c not in remove_chars])
 
-        if query and query.isdigit():
-            # Treat digit queries as a queue index, assuming they're starting from 1
-            index: int = int(query)
-            if index < 1 or index > jukebox.num_tracks():
-                raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(query))
-            query = jukebox.get_item_by_index(index=index - 1).title
+    if query and query.isdigit():
+        # Treat digit queries as a queue index, assuming they're starting from 1
+        index: int = int(query)
+        if index < 1 or index > jukebox.num_tracks():
+            raise commands.errors.BadArgument(Commands.ERROR_BAD_PARAMS.format(query))
+        query = jukebox.get_item_by_index(index=index - 1).title
 
-        if not query and current:
-            # Default to the current track name
-            query = current.title
+    if not query and current:
+        # Default to the current track name
+        query = current.title
 
-        return query
+    return query
 
-    def get_current_track_embed(self, guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
-        """
-        Generates an embed preview for the currently-playing track, or for an empty queue if no track is found.
-        :param guild: Discord server to use for role checks.
-        :param show_tracking: Whether to show track progress bar.
-        :param description: Description to use in place of generic text.
-        """
-        embed: discord.Embed
-        current: JukeboxItem = jukebox.current_track()
-        if not current:
-            # Show embed for empty queue
-            embed = self.get_empty_queue_embed(guild=guild)
-        else:
-            # Show info about the currently-playing track
-            title: str = strings.get("jukebox_title").format(
-                strings.get("status_playing").format(current.title, strings.emoji_play)
-                if jukebox.voice_client and jukebox.voice_client.is_playing()
-                else strings.get("status_paused").format(current.title, strings.emoji_pause))
+def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
+    """
+    Generates an embed preview for the currently-playing track, or for an empty queue if no track is found.
+    :param guild: Discord server to use for role checks.
+    :param show_tracking: Whether to show track progress bar.
+    :param description: Description to use in place of generic text.
+    """
+    embed: discord.Embed
+    current: JukeboxItem = jukebox.current_track()
+    if not current:
+        # Show embed for empty queue
+        embed = get_empty_queue_embed(guild=guild)
+    else:
+        # Show info about the currently-playing track
+        title: str = strings.get("jukebox_title").format(
+            strings.get("status_playing").format(current.title, strings.emoji_play)
+            if jukebox.voice_client and jukebox.voice_client.is_playing()
+            else strings.get("status_paused").format(current.title, strings.emoji_pause))
 
-            if show_tracking and current.audio:
-                # track progress bar
-                tracking_str: list = ["▬"] * min(14, max(6, len(current.title) - 6))
-                tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
-                    strings.emoji_blue_circle if random.randint(0, 200) > 0 \
-                    else str(utils.get(self.bot.emojis, name=strings.get("emoji_id_character")))
-                description = strings.get("jukebox_current_track_progress").format(
-                    "".join(tracking_str),
-                    format_duration(sec=current.audio.progress()),
-                    format_duration(sec=current.audio.duration()),
-                    current.added_by.mention) + (("\n" + description) if description else "")
-            elif not description:
-                # added-by user
-                description = strings.get("jukebox_current_added_by").format(
-                    current.added_by.mention,
-                    format_duration(sec=current.duration))
+        if show_tracking and current.audio:
+            # track progress bar
+            tracking_str: list = ["▬"] * min(14, max(6, len(current.title) - 6))
+            tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
+                strings.emoji_blue_circle if random.randint(0, 200) > 0 \
+                else str(utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_character")))
+            description = strings.get("jukebox_current_track_progress").format(
+                "".join(tracking_str),
+                format_duration(sec=current.audio.progress()),
+                format_duration(sec=current.audio.duration()),
+                current.added_by.mention) + (("\n" + description) if description else "")
+        elif not description:
+            # added-by user
+            description = strings.get("jukebox_current_added_by").format(
+                current.added_by.mention,
+                format_duration(sec=current.duration))
 
-            # queue summary
-            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
-            embed = discord.Embed(
-                title=title,
-                description=description,
-                colour=guild.get_role(config.ROLE_JUKEBOX).colour,
-                url=current.url
-                if current
-                else None)
-            embed.set_thumbnail(url=emoji.url)
-        return embed
-
-    def get_empty_queue_embed(self, guild: discord.Guild, description: Optional[str] = None) -> discord.Embed:
-        """
-        Generates an embed preview for an empty queue.
-        :param guild: Discord server to use for role checks.
-        :param description: Description to use in place of generic text.
-        """
-        emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_jukebox"))
-        embed: discord.Embed = discord.Embed(
-            title=strings.get("jukebox_empty_title"),
-            description=description if description else strings.get("jukebox_empty_description"),
-            colour=guild.get_role(config.ROLE_JUKEBOX).colour)
+        # queue summary
+        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            colour=guild.get_role(config.ROLE_JUKEBOX).colour,
+            url=current.url
+            if current
+            else None)
         embed.set_thumbnail(url=emoji.url)
-        return embed
+    return embed
 
-    def get_empty_queue_msg(self):
-        """
-        Generates a preview message for an empty queue.
-        """
-        emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
-        msg = strings.get("jukebox_empty").format(emoji)
-        return msg
+def get_empty_queue_embed(guild: discord.Guild, description: Optional[str] = None) -> discord.Embed:
+    """
+    Generates an embed preview for an empty queue.
+    :param guild: Discord server to use for role checks.
+    :param description: Description to use in place of generic text.
+    """
+    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_jukebox"))
+    embed: discord.Embed = discord.Embed(
+        title=strings.get("jukebox_empty_title"),
+        description=description if description else strings.get("jukebox_empty_description"),
+        colour=guild.get_role(config.ROLE_JUKEBOX).colour)
+    embed.set_thumbnail(url=emoji.url)
+    return embed
 
-    async def ensure_voice(self) -> None:
-        """
-        Attempts to join the configured voice channel.
-        """
-        voice_channel: discord.VoiceChannel = self.bot.get_channel(config.CHANNEL_VOICE)
-        if not isinstance(jukebox.voice_client, discord.VoiceClient) \
-                or not jukebox.voice_client.is_connected() \
-                or not jukebox.voice_client.channel \
-                or not jukebox.voice_client.channel.id == voice_channel.id:
-            # Assert that the bot has a voice connection
-            try:
-                if jukebox.voice_client:
-                    await jukebox.voice_client.disconnect(force=True)
-            finally:
-                jukebox.voice_client = await voice_channel.connect(
-                    timeout=config.VOICE_TIMEOUT,
-                    reconnect=config.VOICE_RECONNECT)
-        if not jukebox.voice_client:
-            raise Exception(strings.get("error_voice_not_found"))
-
-    async def after_play(self) -> None:
-        """
-        Logic and cleanup to be run after the currently-playing track is removed from the queue.
-        """
-        # Clear votes
-        await Vote.clear_votes()
-
-        # Post now-playing update
-        channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
-        embed: discord.Embed = self.get_current_track_embed(guild=channel.guild, show_tracking=False)
-        await channel.send(embed=embed)
+def get_empty_queue_msg():
+    """
+    Generates a preview message for an empty queue.
+    """
+    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+    msg = strings.get("jukebox_empty").format(emoji)
+    return msg
 
 
 # Utility functions
+
+
+async def ensure_voice() -> None:
+    """
+    Attempts to join the configured voice channel.
+    """
+    voice_channel: discord.VoiceChannel = jukebox.bot.get_channel(config.CHANNEL_VOICE)
+    if not isinstance(jukebox.voice_client, discord.VoiceClient) \
+            or not jukebox.voice_client.is_connected() \
+            or not jukebox.voice_client.channel \
+            or not jukebox.voice_client.channel.id == voice_channel.id:
+        # Assert that the bot has a voice connection
+        try:
+            if jukebox.voice_client:
+                await jukebox.voice_client.disconnect(force=True)
+        finally:
+            jukebox.voice_client = await voice_channel.connect(
+                timeout=config.VOICE_TIMEOUT,
+                reconnect=config.VOICE_RECONNECT)
+    if not jukebox.voice_client:
+        raise Exception(strings.get("error_voice_not_found"))
 
 
 def bytes_to_mib(b: int) -> float:
