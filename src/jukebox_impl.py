@@ -41,7 +41,10 @@ class TrackingAudio(FFmpegPCMAudio):
     :param options: Extra command line arguments to pass to ffmpeg.
     """
     def __init__(self, source: Union[str, io.BufferedIOBase], duration_seconds: int, options: Optional[str] = None) -> None:
-        super().__init__(source=source, options=options)
+        super().__init__(
+            source=source,
+            before_options=config.FFMPEG_BEFORE_OPTIONS,
+            options=config.FFMPEG_OPTIONS)
 
         self._sec_total: int = duration_seconds
         self._ms_current: float = 0
@@ -156,8 +159,7 @@ class JukeboxItem:
         """
         self.audio = TrackingAudio(
             source=self.source,
-            duration_seconds=self.duration,
-            options=config.ffmpeg_options)
+            duration_seconds=self.duration)
         return self.audio
 
 

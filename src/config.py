@@ -100,8 +100,10 @@ HTTP_SEARCH_TIMEOUT: int = cfg["http"]["response_timeout_seconds"]
 
 # FFMPEG
 
-ffmpeg_options: str = cfg["ffmpeg"]["options"]
-"""Command line parameters for FFMPEG process. Does not include before-options."""
+FFMPEG_BEFORE_OPTIONS: str = cfg["ffmpeg"]["before_options"]
+"""Command line parameters for FFMPEG process."""
+FFMPEG_OPTIONS: str = cfg["ffmpeg"]["options"]
+"""Command line parameters for FFMPEG media tasks."""
 
 # Jukebox
 
