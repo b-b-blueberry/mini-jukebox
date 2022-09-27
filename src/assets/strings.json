@@ -34,6 +34,7 @@
   "jukebox_found_item": "{2}\t**{0}** (`{1}`)",
   "jukebox_found_placeholder": "",
   "jukebox_found_description": "{0} — {1}",
+  "jukebox_found_cancel": "Cancel",
   "jukebox_playing": "{3}\tNow playing **{0}** (`{1}`) — {2}",
   "jukebox_paused": "{3}\tPaused **{0}** (`{1}`) — {2}",
   "jukebox_shuffled": "{2}\tShuffled {1} tracks starting with **{0}**",

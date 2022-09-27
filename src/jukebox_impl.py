@@ -40,7 +40,7 @@ class TrackingAudio(FFmpegPCMAudio):
     :param source: The input that ffmpeg will take and convert to PCM bytes.
     :param options: Extra command line arguments to pass to ffmpeg.
     """
-    def __init__(self, source: Union[str, io.BufferedIOBase], duration_seconds: int, options: Optional[str] = None) -> None:
+    def __init__(self, source: Union[str, io.BufferedIOBase], duration_seconds: int) -> None:
         super().__init__(
             source=source,
             before_options=config.FFMPEG_BEFORE_OPTIONS,
@@ -72,7 +72,7 @@ class TrackingAudio(FFmpegPCMAudio):
         """
         Gets ratio of track progress to duration.
         """
-        return self.progress() / self.duration() if self._sec_total > 0 else 0
+        return (self.progress() / self.duration()) if self._sec_total > 0 else 0
 
 
 class YTDLSource(discord.PCMVolumeTransformer):

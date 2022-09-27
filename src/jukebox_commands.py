@@ -177,9 +177,13 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Component view item for selecting a track from a limited set of similar results.
         """
+
+        VALUE_CANCEL: str = "CANCEL"
+
         def __init__(self, entries: List[dict]):
             self.entries: List[dict] = entries
 
+            # Track result items
             options: List[discord.SelectOption] = [discord.SelectOption(
                 label=track.get("title"),
                 value=str(i),
@@ -188,6 +192,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     format_duration(sec=track.get("duration"))),
                 emoji=strings.emoji_digits[i + 1]
             ) for i, track in enumerate(entries)]
+
+            # Cancel interaction item
+            options.append(discord.SelectOption(
+                label=strings.get("jukebox_found_cancel"),
+                value=self.VALUE_CANCEL,
+                emoji=strings.emoji_cancel))
 
             super().__init__(
                 placeholder=strings.get("jukebox_found_placeholder"),
@@ -200,6 +210,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             Override.
             Handles interactions with track result options in select item.
             """
+            if self.values[0] == self.VALUE_CANCEL:
+                # Delete original message on cancel
+                await interaction.message.delete()
+                return
+
             entry: dict = self.entries[int(self.values[0])]
             track: JukeboxItem = jukebox_impl.YTDLSource.entry_to_track(entry=entry, source=entry.get("url"), added_by=interaction.user)
             starting_from_empty: bool = jukebox.is_empty()

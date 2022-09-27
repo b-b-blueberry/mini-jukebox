@@ -17,6 +17,7 @@ Contents:
 """
 
 from importlib import reload
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -115,8 +116,8 @@ class MusicBot(Bot):
         Additional behaviours on errors using commands to either suppress, react, or reply.
         """
         # Add a reaction to posts with unknown commands or invalid uses
-        msg = None
-        reaction = None
+        msg: Optional[str] = None
+        reaction: Optional[str] = None
         try:
             if isinstance(error, commands.CheckFailure):
                 # Suppress failed command checks
@@ -133,7 +134,7 @@ class MusicBot(Bot):
                     msg = strings.get("info_connection_timed_out").format(strings.emoji_connection)
                 reaction = strings.emoji_error
                 err.log(error)
-                raise error
+                raise
         finally:
             if msg:
                 await ctx.reply(content=msg)
