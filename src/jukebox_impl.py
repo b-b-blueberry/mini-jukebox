@@ -326,18 +326,18 @@ class Jukebox:
         :param from_after_play: Whether being called to remove a track immediately after finishing playback.
         """
         try:
+            current: JukeboxItem = self.current_track()
             queue: List[JukeboxItem] = self.get_queue(item.added_by.id)
             queue.remove(item)
+
+            if from_after_play or item is current:
+                # For the currently-playing track, stop playing, triggering self._after_play
+                if self.voice_client and self.voice_client.is_playing():
+                    self.stop()
 
             if is_deleting and not config.PLAYLIST_STREAMING:
                 # Remove downloaded audio files from disk
                 os.remove(item.source)
-
-            if from_after_play or item == self.current_track():
-                if self.voice_client and self.voice_client.is_playing():
-                    # Remove the currently-playing track from the queue
-                    # Stop the voice client if playing, triggering self._after_play
-                    self.stop()
 
             if config.PLAYLIST_MULTIQUEUE and not any(queue):
                 # Remove the item's queue from the multiqueue if empty
@@ -490,17 +490,10 @@ class Jukebox:
         """
         Gets the track at the head of the queue.
         """
-        if self.is_empty():
+        if self.is_empty() or not any(self._multiqueue[self._multiqueue_index]):
             return None
 
-        x_max: int = len(self._multiqueue)
-        y_max: int = max([len(queue) for queue in self._multiqueue])
-        for y in range(0, y_max):
-            for x in range(0, x_max):
-                if y >= len(self._multiqueue[x]):
-                    continue
-                if self._multiqueue[x][y]:
-                    return self._multiqueue[x][y]
+        return self._multiqueue[self._multiqueue_index][0]
 
     def num_tracks(self) -> int:
         """
