@@ -222,7 +222,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             # Join voice channel and start playing
             jukebox.append(track)
             await ensure_voice()
-            jukebox.play()
+            if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
+                jukebox.play()
 
             # Generate embed with track info
             description: str
@@ -354,7 +355,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 guild=ctx.guild,
                                 show_tracking=current and current.audio and current.audio.progress() > 5)
                             await ensure_voice()
-                            jukebox.play()
+                            if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
+                                jukebox.play()
                 else:
                     # Otherwise, try to play a track based on the given URL or search query
                     entries: List[dict]
