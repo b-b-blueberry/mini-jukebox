@@ -114,7 +114,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 return entries
 
             title = response.get("title") if "title" in response else None
-            source = response.get("url") if "url" in response else None
+            source = response.get("url") if "url" in response else entries[0].get("url")
             num_failed = len(response.get("entries")) - len(entries)
 
             if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:

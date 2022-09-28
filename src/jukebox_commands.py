@@ -210,6 +210,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             Override.
             Handles interactions with track result options in select item.
             """
+            if not any(self.values):
+                return
+
             if self.values[0] == self.VALUE_CANCEL:
                 # Delete original message on cancel
                 await interaction.message.delete()
