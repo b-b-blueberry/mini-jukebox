@@ -5,17 +5,22 @@
 
 """
 Contents:
-    MusicBot
-        Help commands
-        Init
-        Bot events
-        Bot utilities
+    Logging
+    Bot definition
+        MusicBot
+            Help commands
+            Init
+            Bot events
+            Bot utilities
     Init
     Runtime events
     Global commands
     Startup
 """
 
+import asyncio
+import logging
+from logging.handlers import RotatingFileHandler
 from importlib import reload
 from typing import Optional
 
@@ -23,13 +28,30 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Bot, Context, HelpCommand
 
-import asyncio
 import config
 import err
 import jukebox_commands
 import strings
 from jukebox_checks import is_admin
 from jukebox_impl import jukebox
+
+
+# Logging
+
+
+if config.LOGGING_FILE:
+    logger: logging.Logger = logging.getLogger("discord")
+    handler: RotatingFileHandler = RotatingFileHandler(
+        filename=config.LOG_PATH,
+        encoding="utf-8",
+        maxBytes=int(config.LOG_SIZE_MEBIBYTES * 1024 * 1024),
+        backupCount=config.LOG_BACKUP_COUNT
+    )
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+
+# Bot definition
 
 
 class MusicBot(Bot):
@@ -134,7 +156,7 @@ class MusicBot(Bot):
                     msg = strings.get("info_connection_timed_out").format(strings.emoji_connection)
                 reaction = strings.emoji_error
                 err.log(error)
-                raise
+                raise error
         finally:
             if msg:
                 await ctx.reply(content=msg)

@@ -8,6 +8,7 @@ Contents:
     Runtime
     Bot
     Tokens
+    Logging
     Discord
     HTTP
     FFMPEG
@@ -31,6 +32,8 @@ STRINGS_PATH = "/jukebox/assets/strings.json"
 """Relative path to data file used for logging, formatting, reply, and flavour strings."""
 DATABASE_PATH: str = "/private/jukebox.db"
 """Relative path to database file used to store usage history."""
+LOG_PATH: str = "./private/discord.log"
+"""Relative path to runtime log files."""
 TEMP_DIR: str = "/private/temp"
 """Relative path to temporary folder used to store cached media data."""
 
@@ -41,6 +44,7 @@ COG_COMMANDS: str = "Jukebox Commands"
 PACKAGE_COMMANDS: str = "jukebox_commands"
 """Name of commands package."""
 
+# Parse config file
 with open(file=CONFIG_PATH, mode="r") as config_file:
     cfg: dict = json.load(config_file)
 
@@ -48,6 +52,11 @@ with open(file=CONFIG_PATH, mode="r") as config_file:
 
 TOKEN_DISCORD: str = cfg["tokens"]["discord"]
 """Token used to run Discord client."""
+
+# Logging
+
+LOG_SIZE_MEBIBYTES: float = cfg["logging"]["file_size_mebibytes"]
+LOG_BACKUP_COUNT: int = cfg["logging"]["backup_count"]
 
 # Discord
 
@@ -88,6 +97,8 @@ VOICE_TIMEOUT: int = cfg["discord"]["voice_timeout_seconds"]
 VOICE_RECONNECT: bool = cfg["discord"]["voice_reconnect_enabled"]
 """Whether to automatically reconnect to voice channels after time-out."""
 
+LOGGING_FILE: bool = cfg["discord"]["logging_file"]
+"""Whether logging usage, events, and tracebacks to file is enabled."""
 LOGGING_CHANNEL: bool = cfg["discord"]["logging_channel"] and CHANNEL_LOG is not None
 """Whether a logging channel is configured and enabled for status and commands."""
 LOGGING_CONSOLE: bool = cfg["discord"]["logging_console"]
