@@ -97,10 +97,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
         source: Optional[str] = None
         num_failed: int = 0
 
+        ytdlconn.params["max_downloads"] = None if not ambiguous else config.YTDL_AMBIGUOUS_RESULTS
         response: Optional[dict] = await loop.run_in_executor(
             executor=None,
             func=lambda: ytdlconn.extract_info(
-                url=query if not ambiguous else f"ytsearch5:{query}",
+                url=query if not ambiguous else f"ytsearch{config.YTDL_AMBIGUOUS_ATTEMPTS}:{query}",
                 download=not ambiguous and not config.PLAYLIST_STREAMING))
 
         # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
@@ -108,6 +109,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         if response:
             # Fetch relevant fields from response and trim out failed downloads from the playlist
+            num_listed: int = len(entries)
             entries = [entry for entry in entries if entry]
 
             if ambiguous:
@@ -115,7 +117,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
             title = response.get("title") if "title" in response else None
             source = response.get("url") if "url" in response else entries[0].get("url")
-            num_failed = len(response.get("entries")) - len(entries)
+            num_failed = num_listed - len(entries)
 
             if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
                 if config.LOGGING_CONSOLE:

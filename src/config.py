@@ -19,6 +19,7 @@ Contents:
 import os
 
 import json
+from typing import List
 
 import discord
 import yt_dlp
@@ -127,10 +128,12 @@ TRACK_DURATION_LIMIT: int = cfg["jukebox"]["track_duration_limit_seconds"]
 
 # YTDL
 
-YTDL_ALLOWED_EXTRACTORS = cfg["ytdl"]["allowed_extractors"]
+YTDL_ALLOWED_EXTRACTORS: List[str] = cfg["ytdl"]["allowed_extractors"]
 """List of permitted media extractors, used to enforce a list of trusted domains to source media from."""
 YTDL_OPTIONS: dict = cfg["ytdl"]["options"]
 """Flags and values for YTDL connection process."""
+YTDL_AMBIGUOUS_ATTEMPTS: int = cfg["ytdl"]["ambiguous_attempts"]
+YTDL_AMBIGUOUS_RESULTS: int = cfg["ytdl"]["ambiguous_results"]
 
 YTDL_OPTIONS["outtmpl"] = os.path.join(TEMP_DIR, YTDL_OPTIONS["outtmpl"])
 yt_dlp.utils.bug_reports_message = lambda: ""

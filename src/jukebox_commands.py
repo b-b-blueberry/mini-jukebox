@@ -14,6 +14,8 @@ Contents:
     Command use restrictions
     Commands
         Classes
+            AmbiguousSearchView
+            AmbiguousSearchSelect
         Constants
         Init
         Default user commands
@@ -150,6 +152,7 @@ class Vote:
                 and jukebox.is_in_voice_channel(member=user):
             await Vote.check_vote(reaction=reaction)
 
+
 # Commands
 
 
@@ -181,7 +184,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         VALUE_CANCEL: str = "CANCEL"
 
         def __init__(self, entries: List[dict]):
-            self.entries: List[dict] = entries
+            # Trim entries down to max allowed in a select menu
+            self.entries: List[dict] = entries[:25]
 
             # Track result items
             options: List[discord.SelectOption] = [discord.SelectOption(
@@ -1159,7 +1163,7 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
 # Discord.py boilerplate
 
 
-async def setup(bot) -> None:
+async def setup(bot: commands.Bot) -> None:
     cog: Commands = Commands(bot)
     await bot.add_cog(cog)
     bot.add_listener(Vote.on_reaction_add)
