@@ -181,7 +181,6 @@ class Jukebox:
     def __init__(self) -> None:
         _clear_temp_folders()
         self._multiqueue: List[List[JukeboxItem]] = []
-        self._multiqueue_index: int = 0
         self.bot: commands.Bot = None
         self.voice_client: Optional[discord.VoiceClient] = None
         self.is_repeating: bool = False
@@ -194,7 +193,7 @@ class Jukebox:
         Fetch all tracks in the queue, flattened into a single list in column-major order with multiqueue enabled.
         """
         return sum(self._multiqueue, []) if config.PLAYLIST_MULTIQUEUE \
-            else self._multiqueue[0] if any(self._multiqueue) \
+            else self.current_queue() if any(self._multiqueue) \
             else []
 
     def get_queue(self, user_id: int = None) -> List[JukeboxItem]:
@@ -209,7 +208,7 @@ class Jukebox:
 
         if not config.PLAYLIST_MULTIQUEUE:
             # Return the base queue
-            return self._multiqueue[0]
+            return self.current_queue()
 
         if user_id:
             # For multiqueue, fetch matching queue for a given user
@@ -218,7 +217,7 @@ class Jukebox:
                     return queue
 
         # Return matching queue in multiqueue if one exists
-        return self._multiqueue[self._multiqueue_index] if len(self._multiqueue) >= self._multiqueue_index else []
+        return self.current_queue() if not self.is_empty() else []
 
     def get_range(self, index_start: int, index_end: int) -> List[JukeboxItem]:
         """
@@ -256,12 +255,12 @@ class Jukebox:
         Fetch an item in the queue by its user-facing (row-major) index.
         :param index: Queue index to fetch item at.
         """
-        if not any(self._multiqueue) or index < 0 or index >= len(self.get_all()):
+        if self.is_empty() or index < 0 or index >= len(self.get_all()):
             return None
 
         if not config.PLAYLIST_MULTIQUEUE:
             # Return item by index in the queue
-            return self._multiqueue[0][index] if any(self._multiqueue) and 0 <= index < len(self._multiqueue) else None
+            return self.current_queue()[index] if any(self._multiqueue) and 0 <= index < len(self._multiqueue) else None
 
         # For multiqueue, return item by index in row-major traversal (one item per queue per iter) of queues
         x_max: int = len(self._multiqueue)
@@ -280,12 +279,12 @@ class Jukebox:
         Fetch the user-facing (row-major) index of an item in the queue.
         :param item: Item in the queue to find the index of.
         """
-        if not any(self._multiqueue):
+        if self.is_empty():
             return -1
 
         if not config.PLAYLIST_MULTIQUEUE:
             # Return index of item in the queue
-            return self._multiqueue[0].index(item)
+            return self.current_queue().index(item)
 
         # For multiqueue, return index of item in row-major traversal (one item per queue per iter) of queues
         x_max: int = len(self._multiqueue)
@@ -343,9 +342,6 @@ class Jukebox:
 
             if config.PLAYLIST_MULTIQUEUE and not any(queue):
                 # Remove the item's queue from the multiqueue if empty
-                if self._multiqueue.index(queue) < self._multiqueue_index:
-                    # Adjust queue index when removing a queue with a lower index than the current
-                    self._multiqueue_index -= 1
                 self._multiqueue.remove(queue)
         except FileNotFoundError as error:
             err.log(error)
@@ -354,10 +350,6 @@ class Jukebox:
         """
         Start media playback, or resume if paused.
         """
-        # Reset index to default if out of bounds
-        if self._multiqueue_index < 0 or self._multiqueue_index >= len(self._multiqueue):
-            self._multiqueue_index = 0
-
         # Play or resume the jukebox queue
         current: JukeboxItem = self.current_track()
         if current and self.voice_client and not self.voice_client.is_playing():
@@ -445,6 +437,7 @@ class Jukebox:
 
         # Remove the just-played track from the queue
         current: JukeboxItem = self.current_track()
+        queue: List[JukeboxItem] = self.get_queue(current.added_by.id)
         self.remove(
             item=current,
             is_deleting=not self.is_repeating,
@@ -457,9 +450,9 @@ class Jukebox:
         if config.LOGGING_CONSOLE:
             print(strings.get("log_console_media_end").format(current.title))
 
-        if config.PLAYLIST_MULTIQUEUE:
-            # Go to the next item in the multiqueue
-            self._multiqueue_index += 1
+        if config.PLAYLIST_MULTIQUEUE and any(queue) and queue in self._multiqueue and len(self._multiqueue) > 1:
+            # Move the current queue to the end of the multiqueue
+            self._multiqueue.append(self._multiqueue.pop(self._multiqueue.index(queue)))
 
         # Play the next item in the queue
         self.play()
@@ -488,14 +481,23 @@ class Jukebox:
         """
         return len(self.voice_client.channel.members) - 1 if self.is_in_voice_channel() else 0
 
+    def current_queue(self) -> Optional[List[JukeboxItem]]:
+        """
+        Gets the head queue.
+        """
+        if self.is_empty():
+            return None
+
+        return self._multiqueue[0]
+
     def current_track(self) -> Optional[JukeboxItem]:
         """
         Gets the track at the head of the queue.
         """
-        if self.is_empty() or not any(self._multiqueue[self._multiqueue_index]):
+        if self.is_empty() or not any(self._multiqueue[0]):
             return None
 
-        return self._multiqueue[self._multiqueue_index][0]
+        return self._multiqueue[0][0]
 
     def num_tracks(self) -> int:
         """
