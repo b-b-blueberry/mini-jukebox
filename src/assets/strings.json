@@ -30,7 +30,7 @@
   "jukebox_current_added_playlist": "Added **{0}** with {2} track(s) (`{1}`)",
   "jukebox_added_one": "Added **{0}** (`{1}`) to the queue as track {2}",
   "jukebox_added_many": "Added **{0}** with **{3}** track(s) (`{1}`) to the queue starting from track {2}",
-  "jukebox_found_title": "Choose your track:",
+  "jukebox_found_title": "{0} is choosing a track…",
   "jukebox_found_item": "{2}\t**{0}** (`{1}`)",
   "jukebox_found_placeholder": "",
   "jukebox_found_description": "{0} — {1}",
@@ -65,7 +65,7 @@
   "info_wipe_failure": "No tracks were wiped.",
   "info_duration_exceeded": "Track duration is too long to be added (`{0}` > `{1}`)",
   "info_large_download": "Queueing {0} track(s) (`{1}` - `{2}MiB`).\nThis may take a while!",
-  "info_connection_timed_out": "{0}\tConnection to the stream timed out..",
+  "info_connection_timed_out": "{0}\tConnection to the stream timed out…",
   "info_unknown": "???",
 
   "error_not_implemented": "Not yet implemented.",

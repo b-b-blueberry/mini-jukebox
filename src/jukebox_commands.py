@@ -299,12 +299,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     if not any(entries):
                         msg = strings.get("error_track").format(query)
                     else:
-                        title: str = strings.get("jukebox_found_title")
-                        emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_chest"))
+                        title: str = strings.get("jukebox_found_title").format(ctx.author.display_name)
                         embed = discord.Embed(
-                            title=title,
                             colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
-                        #embed.set_thumbnail(url=emoji.url)
+                        embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
             except yt_dlp.DownloadError:
                 # Suppress and message download errors
                 msg = strings.get("error_download")
