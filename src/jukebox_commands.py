@@ -330,8 +330,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         current: Optional[JukeboxItem] = None
         starting_from_empty: bool = jukebox.is_empty()
 
-        if not query:
-            raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format("None"))
         if query and query.isdigit():
             # Digit queries search by index in queue to re-add a track
             current = jukebox.get_item_by_index(index=int(query))
@@ -340,8 +338,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             else:
                 query = current.title
 
-        # Resolve query
-        query = parse_query(query=query)
+            # Resolve query
+            query = parse_query(query=query)
 
         async with ctx.typing():
             try:
