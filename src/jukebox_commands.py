@@ -27,6 +27,7 @@ Contents:
     Utility functions
     Discord.py boilerplate
 """
+
 import random
 from http.client import responses
 from importlib import reload
@@ -48,6 +49,7 @@ import jukebox_impl
 import strings
 from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only
 from jukebox_impl import jukebox, JukeboxItem
+from src.db import DBUser
 
 
 class Vote:
@@ -255,6 +257,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     is_blocking_commands: bool = False
     """Whether commands are blocked for non-admin users."""
+    listening_users: Dict[int, int] = {}
+    """Map of users in the voice channel on track playback started, and the track timestamp they joined at."""
 
     # Constants
 
@@ -914,12 +918,46 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Runtime events
 
-    async def after_play(self) -> None:
+    @staticmethod
+    async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
+        """
+        Update state based on listeners in voice channel.
+        """
+        current: JukeboxItem = jukebox.current_track()
+        if not after.channel or not after.channel.id == config.CHANNEL_VOICE or after.deaf or after.self_deaf:
+            # Dismiss users who have left the voice channel or have deafened themselves
+            Commands.listening_users.pop(member.id)
+        elif after.channel and after.channel.id == config.CHANNEL_VOICE:
+            # Note the time that the user joined the voice channel or undeafened themselves
+            Commands.listening_users[member.id] = current.audio.progress() if current and current.audio else 0
+
+    def before_play(self, track: JukeboxItem) -> None:
+        """
+        Behaviours to be run once the currently-playing track has first started.
+        """
+        # Add all users in the voice channel as current listeners joined at 0 milliseconds
+        Commands.listening_users = {user.id: 0 for user in jukebox.voice_client.channel.members}
+
+        # Update tracks added for user once their track has begun playing:
+        current: JukeboxItem = jukebox.current_track()
+        entry: DBUser = self.bot.db.get(user_id=current.added_by.id)
+        entry.tracks_added += 1
+        self.bot.db.update(entry=entry)
+
+    async def after_play(self, track: JukeboxItem) -> None:
         """
         Logic and cleanup to be run after the currently-playing track is removed from the queue.
         """
         # Clear votes
         await Vote.clear_votes()
+
+        # Update db
+        for user_id in Commands.listening_users.keys():
+            joined_at_duration: int = Commands.listening_users[user_id]
+            entry: DBUser = self.bot.db.get(user_id=user_id)
+            entry.tracks_listened += 1
+            entry.duration_listened += track.audio.duration() - joined_at_duration
+            self.bot.db.update(entry=entry)
 
         # Post now-playing update
         channel: discord.TextChannel = jukebox.bot.get_channel(config.CHANNEL_TEXT)
@@ -1163,6 +1201,8 @@ async def setup(bot: commands.Bot) -> None:
     cog: Commands = Commands(bot)
     await bot.add_cog(cog)
     bot.add_listener(Vote.on_reaction_add)
+    bot.add_listener(Commands.on_voice_state_update)
+    jukebox.on_track_start_func = cog.before_play
     jukebox.on_track_end_func = cog.after_play
     bot.reload_strings()
     reload(strings)

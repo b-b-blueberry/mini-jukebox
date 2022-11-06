@@ -29,6 +29,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot, Context, HelpCommand
 
 import config
+import db
 import err
 import jukebox_commands
 import strings
@@ -96,6 +97,7 @@ class MusicBot(Bot):
             description=strings.get("client_description"),
             allowed_mentions=discord.AllowedMentions.none())
         self.help_command = self.MusicHelpCommand()
+        self.db = db
 
     # Bot events
 
@@ -103,6 +105,8 @@ class MusicBot(Bot):
         """
         Inherited from Client. Called once internally after login. Used to load all initial command extensions.
         """
+        # Load database
+        db.setup()
         # Load required extensions
         await self.load_extension(name=jukebox_commands.__name__)
         jukebox.bot = self

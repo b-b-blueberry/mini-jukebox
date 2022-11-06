@@ -184,6 +184,7 @@ class Jukebox:
         self.bot: commands.Bot = None
         self.voice_client: Optional[discord.VoiceClient] = None
         self.is_repeating: bool = False
+        self.on_track_start_func = None
         self.on_track_end_func = None
 
     # Queue managers
@@ -357,6 +358,7 @@ class Jukebox:
                 print(strings.get("log_console_media_start").format(current.title))
 
             if not self.voice_client.is_paused():
+                self._before_play()
                 self.voice_client.play(
                     source=current.audio_from_source(),
                     after=self._after_play)
@@ -427,6 +429,15 @@ class Jukebox:
 
     # Queue events
 
+    def _before_play(self) -> None:
+        """
+        Behaviour run once the current track has begun playback.
+        """
+        current: JukeboxItem = self.current_track()
+        if self.on_track_start_func:
+            # Run bot funcs
+            self.on_track_start_func(current)
+
     def _after_play(self, error: Exception) -> None:
         """
         Logic and cleanup run after the currently-playing track has finished playback.
@@ -460,7 +471,7 @@ class Jukebox:
         # Do user-facing after-play behaviour
         if self.on_track_end_func and self.bot:
             # Run async bot funcs
-            future = asyncio.run_coroutine_threadsafe(self.on_track_end_func(), self.bot.loop)
+            future = asyncio.run_coroutine_threadsafe(self.on_track_end_func(current), self.bot.loop)
             future.result(timeout=config.CORO_TIMEOUT)
 
     # Queue utilities
