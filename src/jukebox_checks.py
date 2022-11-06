@@ -3,11 +3,31 @@
 # Written by blueberry et al., 2022
 # https://github.com/StardewValleyDiscord/mini-jukebox
 
+"""
+Contents:
+    Check errors
+    Check functions
+"""
+
+from discord.ext import commands
 from discord.ext.commands import Context
 
 import config
 import strings
 from jukebox_impl import jukebox
+
+
+# Check errors
+
+
+class CheckFailureQuietly(commands.CheckFailure):
+    """
+    Override for check failure error for specific error handling.
+    """
+    pass
+
+
+# Check functions
 
 
 async def is_admin(ctx: Context, send_message=True) -> bool:

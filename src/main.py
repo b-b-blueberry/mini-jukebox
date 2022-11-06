@@ -32,7 +32,7 @@ import config
 import err
 import jukebox_commands
 import strings
-from jukebox_checks import is_admin
+from jukebox_checks import is_admin, CheckFailureQuietly
 from jukebox_impl import jukebox
 
 
@@ -141,7 +141,10 @@ class MusicBot(Bot):
         msg: Optional[str] = None
         reaction: Optional[str] = None
         try:
-            if isinstance(error, commands.CheckFailure):
+            if isinstance(error, CheckFailureQuietly):
+                # Quietly suppress certain failed command checks
+                return
+            elif isinstance(error, commands.CheckFailure):
                 # Suppress failed command checks
                 reaction = strings.emoji_error
             elif isinstance(error, commands.errors.CommandNotFound):
@@ -222,17 +225,20 @@ async def is_valid_command_use(ctx: Context) -> bool:
     Global check to determine whether a given command should be processed.
     """
     # Ignore commands from bots
-    is_not_bot: bool = not ctx.author.bot
+    is_bot: bool = ctx.author.bot
 
     # Ignore commands from channels other than the designated text channel (except admin commands used by admins)
     is_channel_ok: bool = ctx.channel.id == config.CHANNEL_TEXT \
         or (is_admin in ctx.command.checks and await is_admin(ctx=ctx, send_message=False))
 
     # Ignore commands while commands are blocked (except commands used by admins)
-    is_not_blocked: bool = not bot.get_cog(config.COG_COMMANDS).is_blocking_commands \
-        or await is_admin(ctx=ctx, send_message=False)
+    is_blocked: bool = bot.get_cog(config.COG_COMMANDS).is_blocking_commands \
+        and not await is_admin(ctx=ctx, send_message=False)
 
-    return is_not_bot and is_channel_ok and is_not_blocked
+    if is_bot or not is_channel_ok or is_blocked:
+        raise CheckFailureQuietly()
+
+    return True
 
 
 # Discord.py boilerplate
