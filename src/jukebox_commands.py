@@ -14,6 +14,7 @@ Contents:
     Command use restrictions
     Commands
         Classes
+            MusicActivity
             AmbiguousSearchView
             AmbiguousSearchSelect
         Constants
@@ -23,7 +24,6 @@ Contents:
         Admin commands
         Runtime events
         Vote finalisers
-        Command utilities
     Utility functions
     Discord.py boilerplate
 """
@@ -32,7 +32,7 @@ import random
 from http.client import responses
 from importlib import reload
 from math import ceil, floor
-from typing import List, Dict, Union, Optional, Any, Tuple
+from typing import List, Dict, Union, Optional, Any
 
 import aiohttp
 import discord
@@ -160,6 +160,13 @@ class Vote:
 
 class Commands(commands.Cog, name=config.COG_COMMANDS):
     # Classes
+
+    class MusicActivity(discord.Activity):
+        def __init__(self, title):
+            super().__init__(
+                type=discord.ActivityType.listening,
+                name=title
+            )
 
     class AmbiguousSearchView(discord.ui.View):
         """
@@ -453,8 +460,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 await ctx.reply(content=msg, embed=embed)
 
         # Update rich presence
-        status, activity = get_presence()
-        await self.bot.change_presence(status=status, activity=activity)
+        await self._get_activity()
 
     @commands.command(name="skip", aliases=["s"])
     @commands.check(is_default)
@@ -795,8 +801,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(embed=embed)
 
         # Update rich presence
-        status, activity = get_presence()
-        await self.bot.change_presence(status=status, activity=activity)
+        await self._get_activity()
 
     @commands.command(name="loop", aliases=["o"])
     @commands.check(is_trusted)
@@ -973,8 +978,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await channel.send(embed=embed)
 
         # Update rich presence
-        status, activity = get_presence()
-        await self.bot.change_presence(status=status, activity=activity)
+        await self._get_activity()
+
+    # Activity methods
+
+    async def _get_activity(self, track: JukeboxItem = None) -> None:
+        activity: Optional[Commands.MusicActivity] = None
+        if not track:
+            track = jukebox.current_track()
+        if track and jukebox.voice_client and jukebox.voice_client.is_playing():
+            activity = Commands.MusicActivity(title=track.title)
+        await self.bot.change_presence(activity=activity)
 
     # Vote finalisers
 
@@ -1068,7 +1082,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.send(content=msg)
             await Vote.clear_votes()
 
-# Command utilities
+
+# Utility functions
+
 
 def parse_query(query: any) -> any:
     """
@@ -1093,15 +1109,6 @@ def parse_query(query: any) -> any:
         query = current.title
 
     return query
-
-def get_presence(track: JukeboxItem = None) -> Tuple[discord.Status, Optional[discord.Game]]:
-    if not track:
-        track = jukebox.current_track()
-    status: discord.Status = discord.Status.online
-    activity: Optional[discord.Game] = discord.Game(name=track.title) \
-        if track and jukebox.voice_client and jukebox.voice_client.is_playing() \
-        else None
-    return status, activity
 
 def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
     """
@@ -1172,10 +1179,6 @@ def get_empty_queue_msg():
     emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
     msg = strings.get("jukebox_empty").format(emoji)
     return msg
-
-
-# Utility functions
-
 
 async def ensure_voice() -> None:
     """
