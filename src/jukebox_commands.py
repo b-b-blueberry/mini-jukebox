@@ -32,7 +32,7 @@ import random
 from http.client import responses
 from importlib import reload
 from math import ceil, floor
-from typing import List, Dict, Union, Optional, Any
+from typing import List, Dict, Union, Optional, Any, Tuple
 
 import aiohttp
 import discord
@@ -452,6 +452,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if msg or embed:
                 await ctx.reply(content=msg, embed=embed)
 
+        # Update rich presence
+        status, activity = get_presence()
+        await self.bot.change_presence(status=status, activity=activity)
+
     @commands.command(name="skip", aliases=["s"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
@@ -790,6 +794,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
             await ctx.reply(embed=embed)
 
+        # Update rich presence
+        status, activity = get_presence()
+        await self.bot.change_presence(status=status, activity=activity)
+
     @commands.command(name="loop", aliases=["o"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
@@ -964,6 +972,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: discord.Embed = get_current_track_embed(guild=channel.guild, show_tracking=False)
         await channel.send(embed=embed)
 
+        # Update rich presence
+        status, activity = get_presence()
+        await self.bot.change_presence(status=status, activity=activity)
+
     # Vote finalisers
 
     async def _do_skip(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
@@ -1081,6 +1093,15 @@ def parse_query(query: any) -> any:
         query = current.title
 
     return query
+
+def get_presence(track: JukeboxItem = None) -> Tuple[discord.Status, Optional[discord.Game]]:
+    if not track:
+        track = jukebox.current_track()
+    status: discord.Status = discord.Status.online
+    activity: Optional[discord.Game] = discord.Game(name=track.title) \
+        if track and jukebox.voice_client and jukebox.voice_client.is_playing() \
+        else None
+    return status, activity
 
 def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
     """
