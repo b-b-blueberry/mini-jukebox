@@ -47,7 +47,7 @@ import config
 import jukebox_checks
 import jukebox_impl
 import strings
-from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only
+from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only, is_looping_enabled
 from jukebox_impl import jukebox, JukeboxItem
 from src.db import DBUser
 
@@ -661,9 +661,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg_lines.append("\n".join(iter(track_msgs)))
 
                 # queue loop status
-                msg_lines.append("\n" + strings.get("status_looping").format(
-                    strings.get("on") if jukebox.is_looping else strings.get("off"),
-                    strings.emoji_loop))
+                if await is_looping_enabled(ctx=ctx):
+                    msg_lines.append("\n" + strings.get("status_looping").format(
+                        strings.get("on") if jukebox.is_looping else strings.get("off"),
+                        strings.emoji_loop))
 
                 # queue summary
                 footer: str = strings.get("jukebox_queue_footer").format(
@@ -809,6 +810,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="loop", aliases=["o"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
+    @commands.check(is_looping_enabled)
     async def toggle_loop(self, ctx: Context) -> None:
         """
         Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.
