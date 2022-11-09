@@ -183,7 +183,7 @@ class Jukebox:
         self._multiqueue: List[List[JukeboxItem]] = []
         self.bot: commands.Bot = None
         self.voice_client: Optional[discord.VoiceClient] = None
-        self.is_repeating: bool = False
+        self.is_looping: bool = False
         self.on_track_start_func = None
         self.on_track_end_func = None
 
@@ -420,12 +420,12 @@ class Jukebox:
         random.shuffle(queue)
         return len(queue)
 
-    def repeat(self) -> bool:
+    def loop(self) -> bool:
         """
         Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.
         """
-        self.is_repeating = not self.is_repeating
-        return self.is_repeating
+        self.is_looping = not self.is_looping
+        return self.is_looping
 
     # Queue events
 
@@ -451,11 +451,11 @@ class Jukebox:
         queue: List[JukeboxItem] = self.get_queue(current.added_by.id)
         self.remove(
             item=current,
-            is_deleting=not self.is_repeating,
+            is_deleting=not self.is_looping,
             from_after_play=True)
 
-        # Repeat playlist by re-appending items after removal
-        if current and self.is_repeating:
+        # Loop playlist by re-appending items after removal
+        if current and self.is_looping:
             self.append(current)
 
         if config.LOGGING_CONSOLE:

@@ -661,10 +661,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg_lines.append("\n".join(iter(track_msgs)))
 
                 # queue loop status
-                msg_lines.append("\n" + strings.get("status_looping").format(strings.get("on")
-                                                                             if jukebox.is_repeating
-                                                                             else strings.get("off"),
-                                                                             strings.emoji_repeat))
+                msg_lines.append("\n" + strings.get("status_looping").format(
+                    strings.get("on") if jukebox.is_looping else strings.get("off"),
+                    strings.emoji_loop))
+
                 # queue summary
                 footer: str = strings.get("jukebox_queue_footer").format(
                     queue_length,
@@ -813,12 +813,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.
         """
-        jukebox.repeat()
+        jukebox.loop()
         msg: str = strings.get("status_looping").format(
             strings.get("on")
-            if jukebox.is_repeating
+            if jukebox.is_looping
             else strings.get("off"),
-            strings.emoji_repeat)
+            strings.emoji_loop)
         if msg:
             await ctx.reply(content=msg)
 
@@ -1040,7 +1040,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if track:
                 jukebox.remove(
                     item=track,
-                    is_deleting=not jukebox.is_repeating)
+                    is_deleting=not jukebox.is_looping)
                 msg = strings.get("info_delete_success").format(
                     track.title,
                     format_duration(sec=track.duration),
