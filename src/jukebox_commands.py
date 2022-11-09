@@ -974,7 +974,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
         # Post now-playing update
         channel: discord.TextChannel = jukebox.bot.get_channel(config.CHANNEL_TEXT)
-        embed: discord.Embed = get_current_track_embed(guild=channel.guild, show_tracking=False)
+        embed: discord.Embed = get_current_track_embed(
+            guild=channel.guild,
+            show_tracking=False,
+            previous_track=track)
         await channel.send(embed=embed)
 
         # Update rich presence
@@ -1110,24 +1113,35 @@ def parse_query(query: any) -> any:
 
     return query
 
-def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None) -> discord.Embed:
+def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None, previous_track: JukeboxItem = None) -> discord.Embed:
     """
     Generates an embed preview for the currently-playing track, or for an empty queue if no track is found.
     :param guild: Discord server to use for role checks.
     :param show_tracking: Whether to show track progress bar.
     :param description: Description to use in place of generic text.
+    :param previous_track: Track to use for just-played info text.
     """
     embed: discord.Embed
     current: JukeboxItem = jukebox.current_track()
+    description_played: str = strings.get("jukebox_played").format(
+        previous_track.title,
+        format_duration(sec=previous_track.audio.duration())) \
+        if previous_track else None
     if not current:
         # Show embed for empty queue
         embed = get_empty_queue_embed(guild=guild)
+        if description_played:
+            embed.description = description_played
     else:
         # Show info about the currently-playing track
         title: str = strings.get("jukebox_title").format(
             strings.get("status_playing").format(current.title, strings.emoji_play)
             if jukebox.voice_client and jukebox.voice_client.is_playing()
             else strings.get("status_paused").format(current.title, strings.emoji_pause))
+
+        if description_played:
+            # previous track info
+            description = f"{description}\n{description_played}" if description else description_played
 
         if show_tracking and current.audio:
             # track progress bar
