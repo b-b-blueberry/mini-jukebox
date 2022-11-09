@@ -231,9 +231,9 @@ async def is_valid_command_use(ctx: Context) -> bool:
     # Ignore commands from bots
     is_bot: bool = ctx.author.bot
 
-    # Ignore commands from channels other than the designated text channel (except admin commands used by admins)
+    # Ignore commands from channels other than the designated text channel (except commands used by admins)
     is_channel_ok: bool = ctx.channel.id == config.CHANNEL_TEXT \
-        or (is_admin in ctx.command.checks and await is_admin(ctx=ctx, send_message=False))
+        or await is_admin(ctx=ctx, send_message=False)
 
     # Ignore commands while commands are blocked (except commands used by admins)
     is_blocked: bool = bot.get_cog(config.COG_COMMANDS).is_blocking_commands \
