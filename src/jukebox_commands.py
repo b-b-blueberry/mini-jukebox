@@ -377,6 +377,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     title: str
                     source: str
                     num_failed: int
+                    playlist_items: List[JukeboxItem] = []
+                    playlist_duration: int = 0
 
                     # Fetch metadata for tracks
                     entries, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
@@ -400,7 +402,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             msg = strings.get("error_domain_not_whitelisted").format(extractor)
                         else:
                             # Check for excessively large track lists
-                            playlist_duration: int = sum([int(track.get("duration", 0)) for track in entries])
+                            playlist_duration = sum([int(track.get("duration", 0)) for track in entries])
 
                             # Prepare the playlist audio files
                             playlist_items = await jukebox_impl.YTDLSource.get_playlist_files(
@@ -409,19 +411,20 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 added_by=ctx.author)
 
                     # If no messages (errors) were made, add tracks to the queue
-                    if not msg:
+                    if not msg and any(playlist_items):
                         for playlist_item in playlist_items:
                             jukebox.append(item=playlist_item)
-                        index: int = jukebox.get_index_of_item(playlist_items[0])
-                        current = playlist_items[0]
+
+                        playlist_head: JukeboxItem = playlist_items[0]
+                        playlist_head_index: int = jukebox.get_index_of_item(playlist_head)
 
                         # Start the jukebox
                         if starting_from_empty and jukebox.is_in_voice_channel(ctx.author):
                             # Join voice and start playing if not currently playing and command user is in voice
                             if len(playlist_items) == 1:
                                 description = strings.get("jukebox_current_added_by").format(
-                                    current.added_by.mention,
-                                    format_duration(sec=current.duration))
+                                    playlist_head.added_by.mention,
+                                    format_duration(sec=playlist_head.duration))
                             elif num_failed < 1:
                                 description = strings.get("jukebox_current_added_playlist").format(
                                     title,
@@ -432,9 +435,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         elif len(playlist_items) == 1:
                             # One track was added to a populated queue
                             description = strings.get("jukebox_added_one").format(
-                                playlist_item.title,
-                                format_duration(sec=playlist_item.duration),
-                                index + 1)
+                                playlist_head.title,
+                                format_duration(sec=playlist_head.duration),
+                                playlist_head_index + 1)
                         elif 0 < num_failed < len(entries):
                             # One or more tracks in a playlist failed to download
                             description = strings.get("jukebox_current_added_playlist").format(
@@ -446,7 +449,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             description = strings.get("jukebox_added_many").format(
                                 title,
                                 format_duration(sec=playlist_duration, is_playlist=True),
-                                index + 1,
+                                playlist_head_index + 1,
                                 len(playlist_items))
             except yt_dlp.DownloadError:
                 # Suppress and message download errors
@@ -946,9 +949,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     def before_play(self, track: JukeboxItem) -> None:
         """
-        Behaviours to be run once the currently-playing track has first started.
+        Behaviours to be run before the currently-playing track first starts playback.
         """
-        # Add all users in the voice channel as current listeners joined at 0 milliseconds
+        # Add all users in the voice channel as current listeners joining at 0 seconds
         Commands.listening_users = {user.id: 0 for user in jukebox.voice_client.channel.members}
 
         # Update tracks added for user once their track has begun playing:
