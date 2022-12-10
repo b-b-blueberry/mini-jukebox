@@ -337,7 +337,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         description: Optional[str] = None
         current: Optional[JukeboxItem] = None
-        starting_from_empty: bool = jukebox.is_empty()
 
         if query and query.isdigit():
             # Digit queries search by index in queue to re-add a track
@@ -354,7 +353,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             try:
                 if not query:
                     # Without a search query, try to resume the last-playing track if paused
-                    if starting_from_empty:
+                    if jukebox.is_empty():
                         # Resuming an empty queue does nothing
                         embed = get_empty_queue_embed(guild=ctx.guild)
                     else:
@@ -416,28 +415,29 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             jukebox.append(item=playlist_item)
 
                         playlist_head: JukeboxItem = playlist_items[0]
-                        playlist_head_index: int = jukebox.get_index_of_item(playlist_head)
 
-                        # Start the jukebox
-                        if starting_from_empty and jukebox.is_in_voice_channel(ctx.author):
-                            # Join voice and start playing if not currently playing and command user is in voice
+                        # Join voice and start playing if not currently playing and command user is in voice
+                        if not (jukebox.voice_client and jukebox.voice_client.is_playing()) and jukebox.is_in_voice_channel(ctx.author):
+                            await ensure_voice()
+                            jukebox.play()
+
                             if len(playlist_items) == 1:
+                                # One track was added to an empty queue
                                 description = strings.get("jukebox_current_added_by").format(
                                     playlist_head.added_by.mention,
                                     format_duration(sec=playlist_head.duration))
                             elif num_failed < 1:
+                                # Several tracks in a playlist were added to an empty queue
                                 description = strings.get("jukebox_current_added_playlist").format(
                                     title,
                                     format_duration(sec=playlist_duration, is_playlist=True),
                                     len(playlist_items))
-                            await ensure_voice()
-                            jukebox.play()
                         elif len(playlist_items) == 1:
                             # One track was added to a populated queue
                             description = strings.get("jukebox_added_one").format(
                                 playlist_head.title,
                                 format_duration(sec=playlist_head.duration),
-                                playlist_head_index + 1)
+                                jukebox.get_index_of_item(playlist_head) + 1)
                         elif 0 < num_failed < len(entries):
                             # One or more tracks in a playlist failed to download
                             description = strings.get("jukebox_current_added_playlist").format(
@@ -449,7 +449,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             description = strings.get("jukebox_added_many").format(
                                 title,
                                 format_duration(sec=playlist_duration, is_playlist=True),
-                                playlist_head_index + 1,
+                                jukebox.get_index_of_item(playlist_head) + 1,
                                 len(playlist_items))
             except yt_dlp.DownloadError:
                 # Suppress and message download errors
