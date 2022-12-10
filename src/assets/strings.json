@@ -38,7 +38,7 @@
   "jukebox_found_cancel": "Cancel",
   "jukebox_playing": "{3}\tNow playing **{0}** (`{1}`) — {2}",
   "jukebox_paused": "{3}\tPaused **{0}** (`{1}`) — {2}",
-  "jukebox_played": "Just played **{0}** (`{1}`)",
+  "jukebox_played": "You were listening to: **{0}** (`{1}`)",
   "jukebox_shuffled": "{2}\tShuffled {1} tracks, starting with **{0}**",
   "jukebox_shuffled_one": "{0}\tShuffled exactly one (1) track.",
 
