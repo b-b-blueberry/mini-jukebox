@@ -974,7 +974,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             joined_at_duration: int = Commands.listening_users[user_id]
             entry: DBUser = self.bot.db.get(user_id=user_id)
             entry.tracks_listened += 1
-            entry.duration_listened += track.audio.duration() - joined_at_duration
+            entry.duration_listened += track.duration - joined_at_duration
             self.bot.db.update(entry=entry)
 
         # Post now-playing update
@@ -1041,7 +1041,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             track: JukeboxItem = jukebox.get_item_by_index(index=index)
             if track:
                 jukebox.remove(
-                    item=track,
+                    track=track,
                     is_deleting=not jukebox.is_looping)
                 msg = strings.get("info_delete_success").format(
                     track.title,

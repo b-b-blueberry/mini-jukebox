@@ -167,9 +167,10 @@ class JukeboxItem:
         """
         Fetch audio data from self source URL.
         """
-        self.audio = TrackingAudio(
-            source=self.source,
-            duration_seconds=self.duration)
+        if not self.audio:
+            self.audio = TrackingAudio(
+                source=self.source,
+                duration_seconds=self.duration)
         return self.audio
 
 
@@ -320,32 +321,32 @@ class Jukebox:
                 # Append to existing queue in multiqueue
                 self.get_queue(item.added_by.id).append(item)
 
-    def remove(self, item: JukeboxItem, is_deleting: bool, from_after_play: bool = False) -> None:
+    def remove(self, track: JukeboxItem, is_deleting: bool, is_after_play: bool = False) -> None:
         """
         Remove a track from the queue, stop playback, and remove any associated cached or preloaded files.
-        :param item: Track to be removed.
+        :param track: Track to be removed.
         :param is_deleting: Whether to delete associated files if not streaming.
-        :param from_after_play: Whether being called to remove a track immediately after finishing playback.
+        :param is_after_play: Whether the track is being removed from the current track after-play method.
         """
-        try:
-            current: JukeboxItem = self.current_track()
-            queue: List[JukeboxItem] = self.get_queue(item.added_by.id)
-            queue.remove(item)
+        if not is_after_play and self.voice_client and self.voice_client.source is track.audio:
+            # Stop currently-playing track before removal, invoking after-play behaviour which calls this method itself
+            self.stop()
+        else:
+            if config.LOGGING_CONSOLE:
+                print(strings.get("log_console_media_removed").format(track.title))
 
-            if from_after_play or item is current:
-                # For the currently-playing track, stop playing, triggering self._after_play
-                if self.voice_client and self.voice_client.is_playing():
-                    self.stop()
-
-            if is_deleting and not config.PLAYLIST_STREAMING:
-                # Remove downloaded audio files from disk
-                os.remove(item.source)
-
+            # Remove track from queue
+            queue: List[JukeboxItem] = self.get_queue(track.added_by.id)
+            queue.remove(track)
             if config.PLAYLIST_MULTIQUEUE and not any(queue):
-                # Remove the item's queue from the multiqueue if empty
                 self._multiqueue.remove(queue)
-        except FileNotFoundError as error:
-            err.log(error)
+
+            # Remove downloaded audio file from disk
+            try:
+                if is_deleting and not config.PLAYLIST_STREAMING:
+                    os.remove(track.source)
+            except FileNotFoundError as error:
+                err.log(error)
 
     def play(self) -> None:
         """
@@ -400,9 +401,9 @@ class Jukebox:
         """
         Remove all tracks in a list from the queue.
         """
-        for track in tracks:
+        for track in reversed(tracks):
             self.remove(
-                item=track,
+                track=track,
                 is_deleting=True)
 
     def shuffle(self, user_id: int) -> int:
@@ -446,20 +447,22 @@ class Jukebox:
         if error:
             err.log(error)
 
-        # Remove the just-played track from the queue
-        current: JukeboxItem = self.current_track()
-        queue: List[JukeboxItem] = self.get_queue(current.added_by.id)
-        self.remove(
-            item=current,
-            is_deleting=not self.is_looping,
-            from_after_play=True)
+        track: JukeboxItem = self.current_track()
+        queue: List[JukeboxItem] = self.get_queue(track.added_by.id)
 
-        # Loop playlist by re-appending items after removal
-        if current and self.is_looping:
-            self.append(current)
+        if track:
+            # Remove the just-played track from the queue
+            self.remove(
+                track=track,
+                is_deleting=not self.is_looping,
+                is_after_play=True)
 
-        if config.LOGGING_CONSOLE:
-            print(strings.get("log_console_media_end").format(current.title))
+            # Loop playlist by re-appending items after removal
+            if self.is_looping:
+                self.append(track)
+
+            if config.LOGGING_CONSOLE:
+                print(strings.get("log_console_media_end").format(track.title))
 
         if config.PLAYLIST_MULTIQUEUE and any(queue) and queue in self._multiqueue and len(self._multiqueue) > 1:
             # Move the current queue to the end of the multiqueue
@@ -471,7 +474,7 @@ class Jukebox:
         # Do user-facing after-play behaviour
         if self.on_track_end_func and self.bot:
             # Run async bot funcs
-            future = asyncio.run_coroutine_threadsafe(self.on_track_end_func(current), self.bot.loop)
+            future = asyncio.run_coroutine_threadsafe(self.on_track_end_func(track), self.bot.loop)
             future.result(timeout=config.CORO_TIMEOUT)
 
     # Queue utilities

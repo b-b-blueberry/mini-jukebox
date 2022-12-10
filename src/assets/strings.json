@@ -12,6 +12,7 @@
   "log_console_media_response": "Response: {0}",
   "log_console_media_start": "Playback: {0}",
   "log_console_media_end": "Complete: {0}",
+  "log_console_media_removed": "Removed: {0}",
 
   "log_channel_client_ready": "{3} Logged in as **{0}#{1}** (`{2}`)",
   "log_channel_command_used": "{5} **{0}#{1} ({2})** used in {3}: `{4}`",
