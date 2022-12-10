@@ -39,7 +39,7 @@ import discord
 import yt_dlp
 from datetime import datetime
 
-from discord import utils, Interaction
+from discord import utils, Interaction, ClientException
 from discord.ext import commands
 from discord.ext.commands import Context
 
@@ -1208,14 +1208,19 @@ async def ensure_voice() -> None:
             or not jukebox.voice_client.is_connected() \
             or not jukebox.voice_client.channel \
             or not jukebox.voice_client.channel.id == voice_channel.id:
-        # Assert that the bot has a voice connection
+        # Ensure that the bot has a voice connection
         try:
             if jukebox.voice_client:
                 await jukebox.voice_client.disconnect(force=True)
         finally:
-            jukebox.voice_client = await voice_channel.connect(
-                timeout=config.VOICE_TIMEOUT,
-                reconnect=config.VOICE_RECONNECT)
+            try:
+                jukebox.voice_client = await voice_channel.connect(
+                    timeout=config.VOICE_TIMEOUT,
+                    reconnect=config.VOICE_RECONNECT)
+            except ClientException as e:
+                # Ignore exceptions raised by concurrent voice connection attempts
+                if str(e) == 'Already connected to a voice channel.':
+                    return
     if not jukebox.voice_client:
         raise Exception(strings.get("error_voice_not_found"))
 
