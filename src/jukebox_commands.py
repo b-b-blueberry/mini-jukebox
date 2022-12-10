@@ -463,7 +463,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 await ctx.reply(content=msg, embed=embed)
 
         # Update rich presence
-        await self._get_activity()
+        await self._update_presence()
 
     @commands.command(name="skip", aliases=["s"])
     @commands.check(is_default)
@@ -805,7 +805,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(embed=embed)
 
         # Update rich presence
-        await self._get_activity()
+        await self._update_presence()
 
     @commands.command(name="loop", aliases=["o"])
     @commands.check(is_trusted)
@@ -855,6 +855,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await jukebox.voice_client.disconnect()
         await ctx.message.add_reaction(strings.emoji_confirm)
 
+        # Update rich presence
+        await self._update_presence()
+
     @commands.command(name="cleartracks", aliases=["c"], hidden=True)
     @commands.check(is_admin)
     async def clear_tracks(self, ctx: Context) -> None:
@@ -869,6 +872,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             jukebox.num_tracks()))
         jukebox.clear()
         await ctx.message.add_reaction(strings.emoji_confirm)
+
+        # Update rich presence
+        await self._update_presence()
 
     @commands.command(name="clearvotes", aliases=["v"], hidden=True)
     @commands.check(is_admin)
@@ -986,11 +992,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await channel.send(embed=embed)
 
         # Update rich presence
-        await self._get_activity()
+        await self._update_presence()
 
     # Activity methods
 
-    async def _get_activity(self, track: JukeboxItem = None) -> None:
+    async def _update_presence(self, track: JukeboxItem = None) -> None:
         activity: Optional[Commands.MusicActivity] = None
         if not track:
             track = jukebox.current_track()
@@ -1089,6 +1095,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             msg: str = strings.get("info_vote_collection_modified").format(len(Vote.votes))
             await ctx.send(content=msg)
             await Vote.clear_votes()
+
+        # Update rich presence
+        await self._update_presence()
 
 
 # Utility functions
