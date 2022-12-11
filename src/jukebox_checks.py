@@ -39,7 +39,7 @@ async def is_admin(ctx: Context, send_message: bool = True) -> bool:
 
 
 async def is_trusted(ctx: Context, send_message: bool = True) -> bool:
-    facts = any(role.id == config.ROLE_TRUSTED for role in ctx.author.roles) \
+    facts = any(role.id == config.ROLE_TRUSTED or role.id == config.ROLE_JUKEBOX for role in ctx.author.roles) \
            or await is_admin(ctx=ctx, send_message=False)
     if not facts and send_message:
         msg = strings.get("error_command_role_permissions")
