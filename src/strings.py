@@ -40,7 +40,6 @@ emoji_connection = "\N{ANTENNA WITH BARS}"
 emoji_pin = "\N{PUSHPIN}"
 emoji_lock_on = "\N{LOCK}"
 emoji_lock_off = "\N{OPEN LOCK}"
-emoji_mango = "\N{MANGO}"
 emoji_blue_circle = "\N{LARGE BLUE CIRCLE}"
 emoji_keycap = "\N{LARGE BLUE SQUARE}"
 emoji_hash = "\N{NUMBER SIGN}" + emoji_mod_keycap

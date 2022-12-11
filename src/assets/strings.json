@@ -1,7 +1,10 @@
 {
-  "emoji_id_jukebox": "SDVitemjukebox",
-  "emoji_id_record": "SDVitemvinylrecord",
-  "emoji_id_character": "SDVnukebox",
+  "emoji_id_jukebox": "SDVJBjukebox",
+  "emoji_id_vinyl": "SDVJBvinyl",
+  "emoji_id_gold": "SDVJBgold",
+  "emoji_id_pam": "SDVJBpam",
+  "emoji_id_mango": "SDVJBmango",
+  "emoji_id_nukebox": "SDVJBnukebox",
 
   "client_name": "Mini-Jukebox",
   "client_description": "Stardew Valley Discord music bot",

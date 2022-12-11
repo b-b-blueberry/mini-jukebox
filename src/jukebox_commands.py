@@ -761,7 +761,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                             text = text[:1750] + "..." \
                                 if len(text) > 1750 \
                                 else text
-                            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_record"))
+                            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_vinyl"))
                             embed = discord.Embed(
                                 title=title,
                                 description=text,
@@ -926,7 +926,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id))
-        await ctx.message.add_reaction(strings.emoji_mango)
+        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_mango"))
+        await ctx.message.add_reaction(emoji)
 
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
@@ -1162,7 +1163,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
             tracking_str: list = ["▬"] * min(14, max(6, len(current.title) - 6))
             tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
                 strings.emoji_blue_circle if random.randint(0, 200) > 0 \
-                else str(utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_character")))
+                else str(utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_nukebox")))
             description = strings.get("jukebox_current_track_progress").format(
                 "".join(tracking_str),
                 format_duration(sec=current.audio.progress()),
@@ -1175,7 +1176,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
                 format_duration(sec=current.duration))
 
         # queue summary
-        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
         embed = discord.Embed(
             title=title,
             description=description,
@@ -1204,7 +1205,7 @@ def get_empty_queue_msg():
     """
     Generates a preview message for an empty queue.
     """
-    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_record"))
+    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
     msg = strings.get("jukebox_empty").format(emoji)
     return msg
 
