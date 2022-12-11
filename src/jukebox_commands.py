@@ -1007,6 +1007,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Vote finalisers
 
+    async def _after_vote(self, ctx: Context):
+        """
+        Logic and cleanup called once any vote ends.
+        """
+        if any(Vote.votes):
+            msg: str = strings.get("info_vote_collection_modified").format(len(Vote.votes))
+            await ctx.send(content=msg)
+            await Vote.clear_votes()
+
+        # Update rich presence
+        await self._update_presence()
+
     async def _do_skip(self, ctx: Context, vote: Optional[Vote] = None, success: bool = True,
                        extra_data: Optional[List[JukeboxItem]] = None, end_msg: str = "{0}") -> None:
         """
@@ -1087,18 +1099,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         if msg:
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
-
-    async def _after_vote(self, ctx: Context):
-        """
-        Logic and cleanup called once any vote ends.
-        """
-        if any(Vote.votes):
-            msg: str = strings.get("info_vote_collection_modified").format(len(Vote.votes))
-            await ctx.send(content=msg)
-            await Vote.clear_votes()
-
-        # Update rich presence
-        await self._update_presence()
 
 
 # Utility functions
