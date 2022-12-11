@@ -550,6 +550,32 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         if msg:
             await ctx.reply(content=msg)
 
+    @commands.command(name="shuffle", aliases=["f"])
+    @commands.check(is_default)
+    @commands.check(is_voice_only)
+    async def shuffle(self, ctx: Context) -> None:
+        """
+        Shuffles the queue in-place, stopping the currently-playing track and restarting with the new current track.
+        """
+        async with ctx.typing():
+            msg: str
+            queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
+            if not any(queue):
+                # Shuffling an empty queue does nothing
+                msg = get_empty_queue_msg()
+            elif len(queue) == 1:
+                # Shuffling a single track also does nothing
+                msg = strings.get("jukebox_shuffled_one").format(
+                    strings.emoji_refresh)
+            else:
+                # Shuffling a populated queue reorders the tracks and restarts the new currently-playing track
+                shuffle_count: int = jukebox.shuffle(user_id=queue[0].added_by.id)
+                msg = strings.get("jukebox_shuffled").format(
+                    queue[0].title,
+                    shuffle_count,
+                    strings.emoji_shuffle)
+            await ctx.reply(content=msg)
+
     @commands.command(name="wipe", aliases=["w"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
@@ -696,32 +722,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
         await ctx.reply(embed=embed)
-
-    @commands.command(name="shuffle", aliases=["f"])
-    @commands.check(is_default)
-    @commands.check(is_voice_only)
-    async def shuffle(self, ctx: Context) -> None:
-        """
-        Shuffles the queue in-place, stopping the currently-playing track and restarting with the new current track.
-        """
-        async with ctx.typing():
-            msg: str
-            queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
-            if not any(queue):
-                # Shuffling an empty queue does nothing
-                msg = get_empty_queue_msg()
-            elif len(queue) == 1:
-                # Shuffling a single track also does nothing
-                msg = strings.get("jukebox_shuffled_one").format(
-                    strings.emoji_refresh)
-            else:
-                # Shuffling a populated queue reorders the tracks and restarts the new currently-playing track
-                shuffle_count: int = jukebox.shuffle(user_id=queue[0].added_by.id)
-                msg = strings.get("jukebox_shuffled").format(
-                    queue[0].title,
-                    shuffle_count,
-                    strings.emoji_shuffle)
-            await ctx.reply(content=msg)
 
     # Trusted user commands
 
