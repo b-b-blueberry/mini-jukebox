@@ -26,6 +26,9 @@
   "datetime_format_track": "%M:%S",
   "datetime_format_playlist": "%H:%M:%S",
 
+  "duration_format_user_short": "{0} minutes",
+  "duration_format_user_long": "{1} hours, {0} minutes",
+
   "jukebox_title": "**{0}**",
   "jukebox_empty": "{0}\tNo tracks found in your queue. Roll another record!",
   "jukebox_empty_title": "Jukebox queue is empty.",
@@ -47,6 +50,13 @@
   "jukebox_played": "You were listening to: **{0}** (`{1}`)",
   "jukebox_shuffled": "{2}\tShuffled {1} tracks, starting with **{0}**",
   "jukebox_shuffled_one": "{0}\tShuffled exactly one (1) track.",
+  "jukebox_user_title": "{0}\t{1}",
+  "jukebox_user_info_guild": "**Server stats**",
+  "jukebox_user_info_added": "Queued up: **{0}** tracks",
+  "jukebox_user_info_listened": "Listened to: **{0}** tracks",
+  "jukebox_user_info_duration": "Party time: **{0}**",
+  "jukebox_user_info_roles": "DJ level",
+  "jukebox_user_empty": "No jukebox history!",
 
   "status_playing": "{1}\tNow playing: {0}",
   "status_paused": "{1}\tPaused: {0}",

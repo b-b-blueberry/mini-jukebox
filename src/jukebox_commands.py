@@ -33,7 +33,7 @@ import random
 from http.client import responses
 from importlib import reload
 from math import ceil, floor
-from typing import List, Dict, Union, Optional, Any
+from typing import List, Dict, Union, Optional, Any, Tuple
 
 import aiohttp
 import discord
@@ -724,6 +724,44 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
         await ctx.reply(embed=embed)
 
+    @commands.command(name="user", aliases=["u"])
+    @commands.check(is_default)
+    async def print_user(self, ctx: Context, query: str = None) -> None:
+        """
+        Generate a formatted embed with info for a user's stats to send in the command channel.
+        :param ctx:
+        :param query: A generic search query for users by name or ID, defaults to the command user.
+        """
+        msg: Optional[str] = None
+        embed: Optional[discord.Embed] = None
+        async with ctx.typing():
+            msg, embed = await self._do_print_user(ctx=ctx, query=query)
+            if msg or embed:
+                await ctx.reply(content=msg, embed=embed)
+
+    @commands.command(name="jukebox", aliases=["j"])
+    @commands.check(is_default)
+    async def print_jukebox(self, ctx: Context) -> None:
+        """
+        Generate a formatted embed with info for the jukebox stats to send in the command channel.
+        """
+        msg: Optional[str] = None
+        embed: Optional[discord.Embed] = None
+        async with ctx.typing():
+            msg, embed = await self._do_print_user(ctx=ctx, query=str(self.bot.user.id))
+            if msg or embed:
+                await ctx.reply(content=msg, embed=embed)
+
+    @commands.command(name="info", aliases=["i"])
+    @commands.check(is_default)
+    async def print_info(self, ctx: Context) -> None:
+        """
+        Send info about the jukebox in the command channel.
+        """
+        await ctx.reply(strings.get("info_help").format(
+            ctx.guild.get_channel(config.CHANNEL_TEXT).mention,
+            strings.emoji_pin))
+
     # Trusted user commands
 
     @commands.command(name="lyrics", aliases=["l"])
@@ -1121,6 +1159,74 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
 
+    async def _do_print_user(self, ctx: Context, query: str) -> Tuple[Optional[str], Optional[discord.Embed]]:
+        """
+        Behaviours for creating a formatted embed with jukebox usage stats.
+        """
+        msg: str = None
+        embed: discord.Embed = None
+        try:
+            # Accept users by fuzzy query
+            if not query:
+                query = ctx.author.id
+            user: discord.User = await commands.UserConverter().convert(
+                ctx=ctx,
+                argument=str(query))
+            member: discord.Member = ctx.guild.get_member(user.id)
+            is_jukebox: bool = user.id == self.bot.user.id
+
+            # Cancel if user is valid but not in guild
+            if not member:
+                raise commands.UserNotFound(query)
+
+            # Fetch user's jukebox stats
+            entry: DBUser = self.bot.db.get_user(user_id=member.id)
+            duration_formatted: str = format_user_playtime(sec=entry.duration_listened)
+
+            # Set description to user's jukebox stats
+            info: List[str] = []
+            if is_jukebox:
+                info.append(strings.get("jukebox_user_info_guild"))
+            if entry.tracks_added > 0:
+                info.append(strings.get("jukebox_user_info_added").format(entry.tracks_added))
+            if entry.tracks_listened > 0 or entry.duration_listened > 0:
+                info.append(strings.get("jukebox_user_info_listened").format(entry.tracks_listened))
+                info.append(strings.get("jukebox_user_info_duration").format(duration_formatted))
+            if not any(info):
+                info.append(strings.get("jukebox_user_empty"))
+            info_str: str = "\n".join(info)
+
+            visible_roles: Dict[int, str] = {
+                config.ROLE_ADMIN: "emoji_id_junimo",
+                config.ROLE_JUKEBOX: "emoji_id_jukebox",
+                config.ROLE_TRUSTED: "emoji_id_gold",
+                config.ROLE_DEFAULT: "emoji_id_vinyl"
+            }
+
+            # Set thumbnail to user's privilege icon
+            member_visible_roles: List[Tuple[int, str]] = [
+                (role_id, visible_roles.get(role_id))
+                for role_id in visible_roles.keys()
+                if any(role.id == role_id for role in member.roles)]
+            emoji_id: str = member_visible_roles[0][1] if any(member_visible_roles) else "emoji_id_pam"
+            emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get(emoji_id))
+            role: discord.Role = ctx.guild.get_role(member_visible_roles[0][0]) if any(member_visible_roles) else None
+            roles_str: str = "{0} {1}".format(emoji, role.mention) if role else None
+
+            # Create embed
+            embed = discord.Embed(
+                description=info_str,
+                colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
+            embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
+            if is_jukebox:
+                embed.set_thumbnail(url=emoji.url)
+            elif roles_str:
+                embed.add_field(name=strings.get("jukebox_user_info_roles"), value=roles_str)
+        except commands.UserNotFound:
+            msg = strings.get("error_user_not_found").format(query)
+
+        return msg, embed
+
     async def _do_update_pinned_messages(self, ctx: Context, channel: discord.TextChannel) -> List[discord.Message]:
         """
         Behaviours for sending or editing pinned text channel messages outlining jukebox info and rules.
@@ -1322,6 +1428,19 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
         .strftime(strings.get("datetime_format_playlist")
                   if is_playlist
                   else strings.get("datetime_format_track"))
+
+def format_user_playtime(sec: int) -> str:
+    """
+    Formats a duration in seconds for user duration listened.
+    """
+    mins: float = sec / 60
+    return strings.get(
+        "duration_format_user_short"
+        if mins < 60
+        else "duration_format_user_long").format(
+        int(mins % 60),
+        int(mins / 60)
+    )
 
 
 # Discord.py boilerplate
