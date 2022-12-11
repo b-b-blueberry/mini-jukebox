@@ -4,6 +4,9 @@
   "emoji_id_gold": "SDVJBgold",
   "emoji_id_pam": "SDVJBpam",
   "emoji_id_mango": "SDVJBmango",
+  "emoji_id_puffer": "SDVJBpuffer",
+  "emoji_id_junimo": "SDVJBjunimo",
+  "emoji_id_bouncer": "SDVJBbouncer",
   "emoji_id_nukebox": "SDVJBnukebox",
 
   "client_name": "Mini-Jukebox",
@@ -71,6 +74,8 @@
   "info_duration_exceeded": "Track duration is too long to be added (`{0}` > `{1}`)",
   "info_large_download": "Queueing {0} track(s) (`{1}` - `{2}MiB`).\nThis may take a while!",
   "info_connection_timed_out": "{0}\tConnection to the stream timed out…",
+  "info_update_pinned_messages": "Updated pinned messages in {0}:\n{1}",
+  "info_reason": "Requested by {0}#{1} ({2})",
   "info_unknown": "???",
 
   "error_not_implemented": "Not yet implemented.",
@@ -89,6 +94,7 @@
   "error_extractor_not_found": "Couldn't find extractor for '{0}'.",
   "error_lyrics_not_found": "Couldn't find lyrics for '{0}'.",
   "error_string_not_found": "Couldn't find string '{0}'.",
+  "error_edit_messages": "Couldn't edit messages: found {0} messages for {1} entries.",
   "error_domain_not_whitelisted": "Downloads from {0} aren't permitted.",
   "error_privileges_other": "Only users with the {0} role can {1} other users' tracks.",
   "error_simulation": "Simulation complete (response: {0})."

@@ -14,7 +14,7 @@ Contents:
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Tuple
+from typing import Tuple, Optional
 
 from config import DATABASE_PATH
 
@@ -50,6 +50,10 @@ KEY_TRACKS_ADDED: str = "TRACKS_ADDED"
 KEY_TRACKS_LISTENED: str = "TRACKS_LISTENED"
 KEY_DURATION_LISTENED: str = "DURATION_LISTENED"
 
+TABLE_GUILDS: str = "GUILDS"
+KEY_GUILD_ID: str = "ID"
+KEY_RULES_MESSAGE_IDS: str = "RULES_MESSAGE_IDS"
+
 
 # Utility methods
 
@@ -59,6 +63,15 @@ def setup():
     Generates database with required tables.
     """
     db: Connection = sqlite3.connect(DATABASE_PATH)
+    # Guilds table
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS {0} ({1} INT PRIMARY KEY, {2} INT)"
+        .format(
+            TABLE_GUILDS,
+            KEY_GUILD_ID,
+            KEY_RULES_MESSAGE_IDS
+        ))
+    # Users table
     db.execute(
         "CREATE TABLE IF NOT EXISTS {0} ({1} INT PRIMARY KEY, {2} INT, {3} INT, {4} INT)"
         .format(
@@ -91,10 +104,46 @@ def _db_write(_query: [Tuple[str, list], str]):
     sqlconn.close()
 
 
-# Data queries
+# Guild queries
 
 
-def get(user_id: int) -> DBUser:
+def get_rules_message_ids(guild_id: int) -> Optional[str]:
+    """
+    Gets the rules message IDs for the current guild as space-separated values in order.
+    """
+    query: tuple = (
+        "SELECT {0} FROM {1} WHERE {2}=?"
+        .format(
+            KEY_RULES_MESSAGE_IDS,
+            TABLE_GUILDS,
+            KEY_GUILD_ID
+        ), [
+            guild_id
+        ])
+    result = _db_read(query)
+    return result[0][0] if result and result[0] else None
+
+def set_rules_message_ids(guild_id: int, message_ids: str) -> None:
+    """
+    Updates a guild's rules message IDs.
+    """
+    query: tuple = (
+        "REPLACE INTO {0} ({1}, {2}) VALUES (?, ?)"
+        .format(
+            TABLE_GUILDS,
+            KEY_GUILD_ID,
+            KEY_RULES_MESSAGE_IDS
+        ), [
+            guild_id,
+            message_ids
+        ])
+    _db_write(query)
+
+
+# User queries
+
+
+def get_user(user_id: int) -> DBUser:
     """
     Gets the database entry for a given user.
     """
@@ -123,7 +172,7 @@ def get(user_id: int) -> DBUser:
             duration_listened=entry[0][3]
         )
 
-def update(entry: DBUser) -> None:
+def update_user(entry: DBUser) -> None:
     """
     Updates a user's database entry. Negative values will be ignored.
     """

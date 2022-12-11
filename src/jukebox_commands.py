@@ -28,6 +28,7 @@ Contents:
     Discord.py boilerplate
 """
 
+import json
 import random
 from http.client import responses
 from importlib import reload
@@ -751,13 +752,13 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         msg = strings.get("error_http_status_code").format(
                             f"{response.status} {responses[response.status]}")
                     else:
-                        json = await response.json()
+                        response_json = await response.json()
                         if not json:
                             msg = strings.get("error_lyrics_not_found").format(query)
                         else:
-                            heading: str = json['artist']
-                            title: str = json['title']
-                            text: str = json['lyrics']
+                            heading: str = response_json['artist']
+                            title: str = response_json['title']
+                            text: str = response_json['lyrics']
                             text = text[:1750] + "..." \
                                 if len(text) > 1750 \
                                 else text
@@ -929,6 +930,26 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_mango"))
         await ctx.message.add_reaction(emoji)
 
+    @commands.command(name="pins", aliases=[])
+    @commands.check(is_admin)
+    async def update_pinned_messages(self, ctx: Context) -> None:
+        """
+        Sends or updates pinned messages in the commands channel.
+        """
+        print("Updating pinned messages. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
+        messages: List[discord.Message] = await self._do_update_pinned_messages(
+            ctx=ctx,
+            channel=channel)
+        msg: str = strings.get("info_update_pinned_messages").format(
+            channel.mention,
+            messages[0].jump_url)
+        await ctx.reply(content=msg)
+        await ctx.message.add_reaction(strings.emoji_confirm)
+
     @commands.command(name="str", aliases=[], hidden=True)
     @commands.check(is_admin)
     async def test_string(self, ctx: Context, string: str) -> None:
@@ -965,9 +986,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
         # Update tracks added for user once their track has begun playing:
         current: JukeboxItem = jukebox.current_track()
-        entry: DBUser = self.bot.db.get(user_id=current.added_by.id)
+        entry: DBUser = self.bot.db.get_user(user_id=current.added_by.id)
         entry.tracks_added += 1
-        self.bot.db.update(entry=entry)
+        self.bot.db.update_user(entry=entry)
 
     async def after_play(self, track: JukeboxItem) -> None:
         """
@@ -979,10 +1000,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update db
         for user_id in Commands.listening_users.keys():
             joined_at_duration: int = Commands.listening_users[user_id]
-            entry: DBUser = self.bot.db.get(user_id=user_id)
+            entry: DBUser = self.bot.db.get_user(user_id=user_id)
             entry.tracks_listened += 1
             entry.duration_listened += track.duration - joined_at_duration
-            self.bot.db.update(entry=entry)
+            self.bot.db.update_user(entry=entry)
 
         # Post now-playing update
         channel: discord.TextChannel = jukebox.bot.get_channel(config.CHANNEL_TEXT)
@@ -1099,6 +1120,57 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         if msg:
             await ctx.reply(content=end_msg.format(msg))
         await self._after_vote(ctx=ctx)
+
+    async def _do_update_pinned_messages(self, ctx: Context, channel: discord.TextChannel) -> List[discord.Message]:
+        """
+        Behaviours for sending or editing pinned text channel messages outlining jukebox info and rules.
+        """
+        message_contents: List[str]
+        with open(file=config.PINS_PATH, mode="r", encoding="utf8") as file:
+            message_contents = json.load(file).get("messages")
+
+        message_ids_separator: str = ' '
+        message_ids_raw: str = self.bot.db.get_rules_message_ids(guild_id=ctx.guild.id)
+        messages: List[discord.Message] = []
+        if message_ids_raw:
+            try:
+                # Fetch messages from saved IDs
+                messages = [await channel.fetch_message(int(s)) for s in message_ids_raw.split(message_ids_separator)]
+            except discord.NotFound:
+                # Send new messages if any saved IDs have expired
+                pass
+
+        if not any(messages):
+            # Send messages and save IDs to persistent data for later updates
+            for i, message_content in enumerate(message_contents):
+                message: discord.Message = await channel.send(
+                    content=message_content,
+                    allowed_mentions=discord.AllowedMentions.none())
+                messages.append(message)
+            self.bot.db.set_rules_message_ids(
+                guild_id=ctx.guild.id,
+                message_ids=str.join(message_ids_separator, [str(message.id) for message in messages]))
+            # Add messages to channel pins in bottom-to-top order
+            reason: str = strings.get("info_reason").format(
+                ctx.author.name,
+                ctx.author.discriminator,
+                ctx.author.id)
+            for message in reversed(messages):
+                await message.pin(reason=reason)
+        elif len(messages) == len(message_contents):
+            # Update existing messages from saved IDs in persistent data
+            for i, message_content in enumerate(message_contents):
+                if messages[i].content != message_content:
+                    await messages[i].edit(content=message_content)
+        else:
+            # Require that messages or message contents are reviewed if a mismatch is found
+            msg: str = strings.get("error_edit_messages").format(
+                len(messages),
+                len(message_contents))
+            await ctx.reply(content=msg)
+            raise Exception(msg)
+
+        return messages
 
 
 # Utility functions
