@@ -14,7 +14,7 @@ Contents:
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 from config import DATABASE_PATH
 
@@ -143,6 +143,17 @@ def set_rules_message_ids(guild_id: int, message_ids: str) -> None:
 # User queries
 
 
+def _entry_to_user(entry: list) -> DBUser:
+    """
+    Creates a DBUser instance from a database entry
+    """
+    return DBUser(
+        user_id=entry[0],
+        tracks_added=entry[1],
+        tracks_listened=entry[2],
+        duration_listened=entry[3]
+    )
+
 def get_user(user_id: int) -> DBUser:
     """
     Gets the database entry for a given user.
@@ -156,21 +167,7 @@ def get_user(user_id: int) -> DBUser:
             user_id
         ])
     entry: list = _db_read(query)
-
-    if not entry or not entry[0]:
-        return DBUser(
-            user_id=user_id,
-            tracks_added=0,
-            tracks_listened=0,
-            duration_listened=0
-        )
-    else:
-        return DBUser(
-            user_id=entry[0][0],
-            tracks_added=entry[0][1],
-            tracks_listened=entry[0][2],
-            duration_listened=entry[0][3]
-        )
+    return _entry_to_user(entry[0] if entry and entry[0] else [user_id, 0, 0, 0])
 
 def update_user(entry: DBUser) -> None:
     """
@@ -191,3 +188,27 @@ def update_user(entry: DBUser) -> None:
             entry.duration_listened
         ])
     _db_write(query)
+
+def get_top_users(num: int) -> List[DBUser]:
+    query: tuple = (
+        "SELECT * FROM {0} ORDER BY {1} DESC LIMIT {2}"
+        .format(
+            TABLE_USERS,
+            KEY_DURATION_LISTENED,
+            num
+        ), [
+        ])
+    entries: list = _db_read(query)
+    users: list = [_entry_to_user(entry) for entry in entries]
+    return users
+
+def get_num_users() -> int:
+    query: tuple = (
+        "SELECT COUNT({0}) FROM {1}"
+        .format(
+            KEY_USER_ID,
+            TABLE_USERS
+        ), [
+        ])
+    result: list = _db_read(query)
+    return result[0][0] if result and result[0] else 0
