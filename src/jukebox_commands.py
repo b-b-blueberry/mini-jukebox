@@ -263,6 +263,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Values
 
+    bot: commands.Bot = None
+    """Reference bot instance."""
     is_blocking_commands: bool = False
     """Whether commands are blocked for non-admin users."""
     listening_users: Dict[int, int] = {}
@@ -275,9 +277,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Init
 
-    def __init__(self, bot: commands.Bot):
-        self.bot: commands.Bot = bot
-        """Main bot instance."""
+    def __init__(self):
+        pass
 
     # Default user commands
 
@@ -300,12 +301,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if not jukebox.is_in_voice_channel(member=ctx.author):
                     # Users can only play the jukebox if they're in the voice channel
                     msg = strings.get("error_command_voice_only").format(
-                        self.bot.get_channel(config.CHANNEL_VOICE).mention)
+                        Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
                 else:
                     # Fetch metadata for tracks based on the given query
                     entries: List[dict] = await jukebox_impl.YTDLSource.get_playlist_info(
                         query=query,
-                        loop=self.bot.loop,
+                        loop=Commands.bot.loop,
                         ambiguous=True)
 
                     if not any(entries):
@@ -313,7 +314,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     else:
                         title: str = strings.get("jukebox_found_title").format(ctx.author.display_name)
                         embed = discord.Embed(
-                            colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
+                            colour=get_embed_colour(ctx.guild))
                         embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
             except yt_dlp.DownloadError:
                 # Suppress and message download errors
@@ -361,7 +362,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         if not jukebox.is_in_voice_channel(member=ctx.author):
                             # Users can only play the jukebox if they're in the voice channel
                             msg = strings.get("error_command_voice_only").format(
-                                self.bot.get_channel(config.CHANNEL_VOICE).mention)
+                                Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
                         else:
                             # Playing a populated queue will continue from the current track
                             current = jukebox.current_track()
@@ -383,7 +384,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     # Fetch metadata for tracks
                     entries, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
                         query=query,
-                        loop=self.bot.loop)
+                        loop=Commands.bot.loop)
 
                     # Parse results into an embed, add as many tracks as possible
                     if not source:
@@ -700,11 +701,11 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     page_num + 1,
                     page_max)
 
-                emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_jukebox"))
+                emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_jukebox"))
                 embed = discord.Embed(
                     title=title,
                     description="\n".join(msg_lines),
-                    colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour,
+                    colour=get_embed_colour(ctx.guild),
                     url=current.url
                     if current
                     else None)
@@ -875,7 +876,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id))
-        await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
+        await Commands.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
     @commands.command(name="exit", aliases=["x"])
@@ -978,7 +979,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id))
-        channel: discord.TextChannel = self.bot.get_channel(config.CHANNEL_TEXT)
+        channel: discord.TextChannel = Commands.bot.get_channel(config.CHANNEL_TEXT)
         messages: List[discord.Message] = await self._do_update_pinned_messages(
             ctx=ctx,
             channel=channel)
@@ -1024,9 +1025,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
         # Update tracks added for user once their track has begun playing:
         current: JukeboxItem = jukebox.current_track()
-        entry: DBUser = self.bot.db.get_user(user_id=current.added_by.id)
+        entry: DBUser = Commands.bot.db.get_user(user_id=current.added_by.id)
         entry.tracks_added += 1
-        self.bot.db.update_user(entry=entry)
+        Commands.bot.db.update_user(entry=entry)
 
     async def after_play(self, track: JukeboxItem) -> None:
         """
@@ -1038,10 +1039,10 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update db
         for user_id in Commands.listening_users.keys():
             joined_at_duration: int = Commands.listening_users[user_id]
-            entry: DBUser = self.bot.db.get_user(user_id=user_id)
+            entry: DBUser = Commands.bot.db.get_user(user_id=user_id)
             entry.tracks_listened += 1
             entry.duration_listened += track.duration - joined_at_duration
-            self.bot.db.update_user(entry=entry)
+            Commands.bot.db.update_user(entry=entry)
 
         # Post now-playing update
         channel: discord.TextChannel = jukebox.bot.get_channel(config.CHANNEL_TEXT)
@@ -1062,7 +1063,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             track = jukebox.current_track()
         if track and jukebox.voice_client and jukebox.voice_client.is_playing():
             activity = Commands.MusicActivity(title=track.title)
-        await self.bot.change_presence(activity=activity)
+        await Commands.bot.change_presence(activity=activity)
 
     # Vote finalisers
 
@@ -1173,27 +1174,24 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 ctx=ctx,
                 argument=str(query))
             member: discord.Member = ctx.guild.get_member(user.id)
-            is_jukebox: bool = user.id == self.bot.user.id
+            is_jukebox: bool = user.id == Commands.bot.user.id
 
             # Cancel if user is valid but not in guild
             if not member:
                 raise commands.UserNotFound(query)
 
             # Fetch user's jukebox stats
-            entry: DBUser = self.bot.db.get_user(user_id=member.id)
+            entry: DBUser = Commands.bot.db.get_user(user_id=member.id)
             duration_formatted: str = format_user_playtime(sec=entry.duration_listened)
 
             # Set description to user's jukebox stats
+            is_new: bool = False
             info: List[str] = []
-            if is_jukebox:
-                info.append(strings.get("jukebox_user_info_guild"))
             if entry.tracks_added > 0:
                 info.append(strings.get("jukebox_user_info_added").format(entry.tracks_added))
             if entry.tracks_listened > 0 or entry.duration_listened > 0:
                 info.append(strings.get("jukebox_user_info_listened").format(entry.tracks_listened))
                 info.append(strings.get("jukebox_user_info_duration").format(duration_formatted))
-            if not any(info):
-                info.append(strings.get("jukebox_user_empty"))
             info_str: str = "\n".join(info)
 
             visible_roles: Dict[int, str] = {
@@ -1215,13 +1213,16 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
             # Create embed
             embed = discord.Embed(
-                description=info_str,
-                colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
+                description=strings.get("jukebox_user_empty") if is_new else None,
+                colour=get_embed_colour(ctx.guild))
             embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
+            if any(info):
+                embed_name: str = strings.get("jukebox_user_info_guild") if is_jukebox else strings.get("jukebox_user_info_user")
+                embed.add_field(name=embed_name, value=info_str, inline=False)
             if is_jukebox:
                 embed.set_thumbnail(url=emoji.url)
             elif roles_str:
-                embed.add_field(name=strings.get("jukebox_user_info_roles"), value=roles_str)
+                embed.add_field(name=strings.get("jukebox_user_info_roles"), value=roles_str, inline=False)
         except commands.UserNotFound:
             msg = strings.get("error_user_not_found").format(query)
 
@@ -1236,7 +1237,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             message_contents = json.load(file).get("messages")
 
         message_ids_separator: str = ' '
-        message_ids_raw: str = self.bot.db.get_rules_message_ids(guild_id=ctx.guild.id)
+        message_ids_raw: str = Commands.bot.db.get_rules_message_ids(guild_id=ctx.guild.id)
         messages: List[discord.Message] = []
         if message_ids_raw:
             try:
@@ -1253,7 +1254,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     content=message_content,
                     allowed_mentions=discord.AllowedMentions.none())
                 messages.append(message)
-            self.bot.db.set_rules_message_ids(
+            Commands.bot.db.set_rules_message_ids(
                 guild_id=ctx.guild.id,
                 message_ids=str.join(message_ids_separator, [str(message.id) for message in messages]))
             # Add messages to channel pins in bottom-to-top order
@@ -1305,6 +1306,10 @@ def parse_query(query: any) -> any:
         query = current.title
 
     return query
+
+def get_embed_colour(guild: discord.Guild) -> discord.Colour:
+    # return guild.get_role(config.ROLE_JUKEBOX).colour
+    return guild.get_member(Commands.bot.user.id).colour
 
 def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None, previous_track: JukeboxItem = None) -> discord.Embed:
     """
@@ -1358,7 +1363,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
         embed = discord.Embed(
             title=title,
             description=description,
-            colour=guild.get_role(config.ROLE_JUKEBOX).colour,
+            colour=get_embed_colour(guild),
             url=current.url
             if current
             else None)
@@ -1375,7 +1380,7 @@ def get_empty_queue_embed(guild: discord.Guild, description: Optional[str] = Non
     embed: discord.Embed = discord.Embed(
         title=strings.get("jukebox_empty_title"),
         description=description if description else strings.get("jukebox_empty_description"),
-        colour=guild.get_role(config.ROLE_JUKEBOX).colour)
+        colour=get_embed_colour(guild))
     embed.set_thumbnail(url=emoji.url)
     return embed
 
@@ -1447,7 +1452,8 @@ def format_user_playtime(sec: int) -> str:
 
 
 async def setup(bot: commands.Bot) -> None:
-    cog: Commands = Commands(bot)
+    cog: Commands = Commands()
+    Commands.bot = cog.bot = bot
     await bot.add_cog(cog)
     bot.add_listener(Vote.on_reaction_add)
     bot.add_listener(Commands.on_voice_state_update)
