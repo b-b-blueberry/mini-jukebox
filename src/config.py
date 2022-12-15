@@ -13,6 +13,7 @@ Contents:
     HTTP
     FFMPEG
     Jukebox
+    Lyrics
     YTDL
 """
 
@@ -129,6 +130,15 @@ PLAYLIST_LOOPING: bool = cfg["jukebox"]["looping_enabled"]
 """Whether queues may be toggled to loop their tracks, reappending played tracks."""
 TRACK_DURATION_LIMIT: int = cfg["jukebox"]["track_duration_limit_seconds"]
 """Duration in seconds for track runtime before being blocked from the queue."""
+
+# Lyrics
+
+TOKEN_LYRICS: str = cfg["tokens"]["lyrics"]
+"""Personal access token for lyrics provider."""
+LYRICS_LINE_LIMIT: int = cfg["lyrics"]["line_limit"]
+"""Maximum number of lines to print to a chat embed."""
+LYRICS_CHARACTER_LIMIT: int = cfg["lyrics"]["character_limit"]
+"""Maximum number of characters to print to a chat embed."""
 
 # YTDL
 

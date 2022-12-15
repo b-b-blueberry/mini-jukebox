@@ -30,6 +30,7 @@ Contents:
 
 import json
 import random
+import re
 from importlib import reload
 from math import ceil, floor
 from typing import List, Dict, Union, Optional, Any, Tuple
@@ -42,6 +43,8 @@ from datetime import datetime
 from discord import utils, Interaction, ClientException
 from discord.ext import commands
 from discord.ext.commands import Context
+from lyricsgenius import Genius
+from lyricsgenius.song import Song
 
 import config
 import jukebox_checks
@@ -805,42 +808,55 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
-        timeout = aiohttp.ClientTimeout(total=config.HTTP_SEARCH_TIMEOUT)
+        genius: Genius = Genius(config.TOKEN_LYRICS)
+        genius.timeout = config.HTTP_SEARCH_TIMEOUT
+        genius.verbose = True
 
         async with ctx.typing():
             # Resolve query
             query = parse_query(query=query)
             if not query and jukebox.is_empty():
                 embed = get_empty_queue_embed(guild=ctx.guild)
-            async with aiohttp.ClientSession() as session:
-                query_url: str = "https://api.yodabot.xyz/api/lyrics/search"
-                params: dict = {"q": query}
-                async with session.get(url=query_url, params=params, timeout=timeout) as response:
-                    if response.status != 200:
-                        msg = strings.get("error_http_status_code").format(
-                            f"{response.status} {responses[response.status]}")
-                    else:
-                        response_json = await response.json()
-                        if not json:
-                            msg = strings.get("error_lyrics_not_found").format(query)
-                        else:
-                            heading: str = response_json['artist']
-                            title: str = response_json['title']
-                            text: str = response_json['lyrics']
-                            text = text[:1750] + "..." \
-                                if len(text) > 1750 \
-                                else text
-                            emoji: discord.Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_id_vinyl"))
-                            embed = discord.Embed(
-                                title=title,
-                                description=text,
-                                colour=ctx.guild.get_role(config.ROLE_JUKEBOX).colour)
-                            embed \
-                                .set_author(name=heading) \
-                                .set_footer(
-                                    text=response.url.host,
-                                    icon_url="https://api.yodabot.xyz/assets/transparent-yoda.png") \
-                                .set_thumbnail(url=emoji.url)
+            else:
+                song: Optional[Song] = genius.search_song(title=query)
+                if not song:
+                    msg = strings.get("error_lyrics_not_found").format(query)
+                else:
+                    heading: str = song.artist
+                    title: str = song.title
+                    text: str = song.lyrics
+                    url: str = song.url
+
+                    # Crop useless artefacts out of raw text
+                    text = re.sub(r"You might also like|\d*Embed", "", text.split("Lyrics", 1)[1])
+
+                    # Crop text to fit character limit
+                    limit_chars: int = config.LYRICS_CHARACTER_LIMIT
+                    limit_lines: int = config.LYRICS_LINE_LIMIT
+                    text_limited: str = "\n".join(text.split("\n", limit_lines))[:limit_chars].strip()
+                    text_after_limit: List[str] = text[len(text_limited):].split("\n")
+
+                    # Vanity text for lines remaining
+                    text = text_limited + "…" + strings.get("jukebox_lyrics_more").format(len(text_after_limit)) \
+                        if any(line for line in text_after_limit if line.strip()) \
+                        else text_limited
+
+                    # Italicise context tags
+                    text = re.sub(r"\[.+\]", lambda match: f"*{match.group()}*", text)
+
+                    # Create embed
+                    emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_vinyl"))
+                    embed = discord.Embed(
+                        title=title,
+                        description=text,
+                        url=url,
+                        colour=get_embed_colour(ctx.guild))
+                    embed \
+                        .set_author(name=heading) \
+                        .set_footer(
+                            text=strings.get("jukebox_lyrics_credit"),
+                            icon_url="https://assets.genius.com/images/apple-touch-icon.png") \
+                        .set_thumbnail(url=emoji.url)
 
             if msg or embed:
                 await ctx.reply(

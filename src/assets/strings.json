@@ -62,6 +62,8 @@
   "jukebox_leaderboard_top": "{2} {0}** — {1}**",
   "jukebox_leaderboard_item": "{2} {0} — {1}",
   "jukebox_leaderboard_count": "  …and {0} others.",
+  "jukebox_lyrics_more": "\n\n*{0} more lines*",
+  "jukebox_lyrics_credit": "Powered by Genius",
 
   "status_playing": "{1}\tNow playing: {0}",
   "status_paused": "{1}\tPaused: {0}",
