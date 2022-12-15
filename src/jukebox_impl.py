@@ -104,10 +104,10 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 url=query if not ambiguous else f"ytsearch{config.YTDL_AMBIGUOUS_ATTEMPTS}:{query}",
                 download=not ambiguous and not config.PLAYLIST_STREAMING))
 
-        # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
-        entries = response.get("entries") if "entries" in response else [response]
-
         if response:
+            # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
+            entries = response.get("entries") if "entries" in response else [response]
+
             # Fetch relevant fields from response and trim out failed downloads from the playlist
             num_listed: int = len(entries)
             entries = [entry for entry in entries if entry]
