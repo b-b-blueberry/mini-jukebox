@@ -92,6 +92,7 @@
   "info_large_download": "Queueing {0} track(s) (`{1}` - `{2}MiB`).\nThis may take a while!",
   "info_connection_timed_out": "{0}\tConnection to the stream timed out…",
   "info_update_pinned_messages": "Updated pinned messages in {0}:\n{1}",
+  "info_update_avatar": "Updated avatar to {0}",
   "info_reason": "Requested by {0}#{1} ({2})",
   "info_unknown": "???",
 
@@ -114,5 +115,7 @@
   "error_edit_messages": "Couldn't edit messages: found {0} messages for {1} entries.",
   "error_domain_not_whitelisted": "Downloads from {0} aren't permitted.",
   "error_privileges_other": "Only users with the {0} role can {1} other users' tracks.",
+  "error_avatar_not_found": "Couldn't update avatar without an attached file.",
+  "error_avatar_size": "Couldn't update avatar: file too large (maximum {0} MB).",
   "error_simulation": "Simulation complete (response: {0})."
 }

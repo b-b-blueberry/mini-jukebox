@@ -1078,6 +1078,43 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await ctx.reply(content=msg)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
+    @commands.command(name="avatar", hidden=True)
+    @commands.cooldown(rate=2, per=60*60*60, type=discord.ext.commands.BucketType.guild)
+    @commands.check(is_admin)
+    async def update_avatar(self, ctx: Context) -> None:
+        """
+        Updates bot client display picture.
+        """
+        print("Updating avatar. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+
+        msg: str = None
+        file: discord.Attachment = None
+        size_denom: int = 1000 * 1000
+        size_max: int = 8
+
+        # Fetch avatar from attachments
+        if any(ctx.message.attachments):
+            images: list = [a for a in ctx.message.attachments if re.match(r"image/(png|jpe?g)", a.content_type)]
+            if any(images):
+                images_usable: list = [a for a in images if a.size < size_denom * size_max]
+                if not any(images_usable):
+                    msg = strings.get("error_avatar_size").format(size_max)
+                else:
+                    file = images_usable[0]
+        if not file:
+            if not msg:
+                msg = strings.get("error_avatar_not_found")
+        else:
+            file_raw: bytes = await file.read()
+            await Commands.bot.user.edit(avatar=file_raw)
+            await ctx.message.add_reaction(strings.emoji_confirm)
+            msg = strings.get("info_update_avatar").format(file.filename)
+
+        await ctx.reply(content=msg)
+
     @commands.command(name="str", hidden=True)
     @commands.check(is_admin)
     async def test_string(self, ctx: Context, string: str) -> None:
