@@ -31,15 +31,13 @@ Contents:
 import json
 import random
 import re
+from datetime import datetime
 from importlib import reload
 from math import ceil, floor
 from typing import List, Dict, Union, Optional, Any, Tuple
 
-import aiohttp
 import discord
 import yt_dlp
-from datetime import datetime
-
 from discord import utils, Interaction, ClientException
 from discord.ext import commands
 from discord.ext.commands import Context
@@ -943,7 +941,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update rich presence
         await self._update_presence()
 
-    @commands.command(name="cleartracks", aliases=["c"], hidden=True)
+    @commands.command(name="cleartracks", aliases=["c"])
     @commands.check(is_admin)
     async def clear_tracks(self, ctx: Context) -> None:
         """
@@ -961,7 +959,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update rich presence
         await self._update_presence()
 
-    @commands.command(name="clearvotes", aliases=["v"], hidden=True)
+    @commands.command(name="clearvotes", aliases=["v"])
     @commands.check(is_admin)
     async def clear_votes(self, ctx: Context) -> None:
         """
@@ -1014,7 +1012,53 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_mango"))
         await ctx.message.add_reaction(emoji)
 
-    @commands.command(name="pins", aliases=[])
+    @commands.command(name="send", hidden=True)
+    @commands.check(is_admin)
+    async def send_message(self, ctx: Context, query: str, *, content: str) -> None:
+        """
+        Sends a message in a given channel.
+        :param ctx:
+        :param query: Query for Discord channel to send message in.
+        :param content: Message content to send.
+        :return:
+        """
+        if not content:
+            content = " "
+        content = content[:2000]
+        channel: discord.abc.GuildChannel = query_channel(guild=ctx.guild, query=query)
+        if content and isinstance(channel, discord.TextChannel):
+            message: discord.Message = await channel.send(content=content)
+            msg = strings.get("commands_response_send_success").format(
+                channel.mention,
+                message.jump_url)
+        else:
+            msg = strings.get("commands_response_send_failure")
+        await ctx.reply(content=msg)
+
+    @commands.command(name="edit", hidden=True)
+    @commands.check(is_admin)
+    async def edit_message(self, ctx: Context, message_id: int, *, content: str) -> None:
+        """
+        Edits a message in the current guild.
+        :param ctx:
+        :param message_id: Discord message ID to edit.
+        :param content: Message content to use.
+        """
+        if not content:
+            content = " "
+        content = content[:2000]
+        msg: str
+        message: discord.Message = await get_guild_message(guild=ctx.guild, message_id=message_id)
+        if content and message:
+            await message.edit(content=content, embeds=message.embeds)
+            msg = strings.get("commands_response_edit_success").format(
+                message.channel.mention,
+                message.jump_url)
+        else:
+            msg = strings.get("commands_response_edit_failure")
+        await ctx.reply(content=msg)
+
+    @commands.command(name="pins", hidden=True)
     @commands.check(is_admin)
     async def update_pinned_messages(self, ctx: Context) -> None:
         """
@@ -1034,11 +1078,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await ctx.reply(content=msg)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
-    @commands.command(name="str", aliases=[], hidden=True)
+    @commands.command(name="str", hidden=True)
     @commands.check(is_admin)
     async def test_string(self, ctx: Context, string: str) -> None:
         """
         Test strings without formatting in the command channel.
+        :param ctx:
         :param string: Key of string in strings data file.
         """
         msg: str = strings.get(string)
@@ -1351,6 +1396,46 @@ def parse_query(query: any) -> any:
         query = current.title
 
     return query
+
+def mention_to_id(mention: [str, int]) -> int:
+    """
+    Strips mention formatting from a Discord ID.
+    :param mention: Discord ID or mention string.
+    :return: Discord ID as digits only.
+    """
+    return int(re.sub(r"\D", "", mention))
+
+def query_channel(guild: discord.Guild, query: str) -> Optional[discord.abc.GuildChannel]:
+    """
+    Converts a Discord channel ID or mention to a channel instance, if a visible matching channel exists.
+    :param guild:
+    :param query: Discord channel ID or mention.
+    :return: Channel instance, if found.
+    """
+    return guild.get_channel(mention_to_id(query))
+
+async def get_guild_message(guild: discord.Guild, message_id: int) -> discord.Message:
+    """
+    Source: Governor by StardewValleyDiscord.
+
+    Returns a message in a guild by querying individual channels.
+    :param guild: Guild with channels to search in.
+    :param message_id: Discord message ID to search for.
+    :return: Message instance if found.
+    """
+    for channel in guild.channels:
+        try:
+            if isinstance(channel, discord.TextChannel):
+                message = await channel.fetch_message(int(message_id))
+                return message
+        except discord.Forbidden as e:
+            # Ignore channels we're unable to search
+            if e.code == 50001:
+                pass
+        except discord.NotFound as e:
+            # Ignore channels that don't contain a matching message
+            if e.code == 10008:
+                pass
 
 def get_embed_colour(guild: discord.Guild) -> discord.Colour:
     # return guild.get_role(config.ROLE_JUKEBOX).colour
