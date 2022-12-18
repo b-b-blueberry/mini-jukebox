@@ -1723,8 +1723,8 @@ def format_user_playtime(sec: int) -> str:
 
 def get_genius() -> Genius:
     genius: Genius = Genius(config.TOKEN_LYRICS)
-    genius.timeout = config.HTTP_SEARCH_TIMEOUT
-    genius.verbose = True
+    genius.timeout = config.LYRICS_SEARCH_TIMEOUT
+    genius.verbose = config.LYRICS_VERBOSE
     return genius
 
 

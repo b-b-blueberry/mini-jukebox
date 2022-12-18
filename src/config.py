@@ -10,7 +10,6 @@ Contents:
     Tokens
     Logging
     Discord
-    HTTP
     FFMPEG
     Jukebox
     Lyrics
@@ -108,11 +107,6 @@ LOGGING_CHANNEL: bool = cfg["discord"]["logging_channel"] and CHANNEL_LOG is not
 LOGGING_CONSOLE: bool = cfg["discord"]["logging_console"]
 """Whether logging status and commands to console is enabled."""
 
-# HTTP
-
-HTTP_SEARCH_TIMEOUT: int = cfg["http"]["response_timeout_seconds"]
-"""Duration in seconds before HTTP requests are timed-out."""
-
 # FFMPEG
 
 FFMPEG_BEFORE_OPTIONS: str = cfg["ffmpeg"]["before_options"]
@@ -139,6 +133,10 @@ LYRICS_LINE_LIMIT: int = cfg["lyrics"]["line_limit"]
 """Maximum number of lines to print to a chat embed."""
 LYRICS_CHARACTER_LIMIT: int = cfg["lyrics"]["character_limit"]
 """Maximum number of characters to print to a chat embed."""
+LYRICS_SEARCH_TIMEOUT: int = cfg["lyrics"]["response_timeout_seconds"]
+"""Duration in seconds before lyrics provider requests are timed-out."""
+LYRICS_VERBOSE: bool = cfg["lyrics"]["verbose"]
+"""Whether lyrics provider will use verbose logging."""
 
 # YTDL
 
