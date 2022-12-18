@@ -83,6 +83,8 @@ ROLE_TRUSTED: int = cfg["discord"]["roles"]["trusted"]
 """Discord role ID for commands and features requiring elevated privileges."""
 ROLE_DEFAULT: int = cfg["discord"]["roles"]["default"]
 """Discord role ID for commands requiring basic privileges."""
+ROLE_LISTEN: int = cfg["discord"]["roles"]["listen"]
+"""Discord role ID for a role with no privileges."""
 ROLE_JUKEBOX: int = cfg["discord"]["roles"]["bonus"]
 """Discord role ID for bonus flavour role themed around the jukebox."""
 
@@ -92,6 +94,8 @@ CHANNEL_TEXT: int = cfg["discord"]["channels"]["text"]
 """Discord channel ID for the text channel used for command interactions."""
 CHANNEL_LOG: int = cfg["discord"]["channels"]["log"]
 """Discord channel ID used to send status and event logging if configured."""
+CHANNEL_BULLETIN: int = cfg["discord"]["channels"]["bulletin"]
+"""Discord channel ID used to send bulletins and news updates."""
 
 CORO_TIMEOUT: int = cfg["discord"]["coro_timeout_seconds"]
 """Duration in seconds before coroutines are timed-out."""

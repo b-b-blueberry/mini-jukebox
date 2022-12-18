@@ -66,6 +66,9 @@
   "jukebox_lyrics_more": "\n\n  *…and {0} more lines*",
   "jukebox_lyrics_credit": "Powered by Genius",
 
+  "bulletin_title": "{0}\tNow playing in the Stardrop Saloon",
+  "bulletin_text": "{0} All your favourite tracks!\nJoin the {1}{2} to start a listening party:\n\n`01:33/03:37` ▬▬▬▬▬🔵▬▬▬▬▬▬▬▬ `-02:04`",
+
   "status_playing": "{1}\tNow playing: {0}",
   "status_paused": "{1}\tPaused: {0}",
   "status_looping": "{1}\tLooping: {0}",

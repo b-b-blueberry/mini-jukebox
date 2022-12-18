@@ -1196,6 +1196,16 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         if msg
                         else strings.get("error_string_not_found").format(string))
 
+    @commands.command(name="send_bulletin", hidden=True)
+    @commands.check(is_admin)
+    async def send_bulletin(self, ctx: Context) -> None:
+        embed: discord.Embed = await self._get_bulletin_embed(guild=ctx.guild)
+        channel: discord.TextChannel = ctx.guild.get_channel(config.CHANNEL_BULLETIN)
+        message: discord.Message = await channel.send(embed=embed)
+        for emoji_id in ["emoji_id_nukebox", "emoji_id_pam", "emoji_id_mango"]:
+            emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get(emoji_id))
+            await message.add_reaction(emoji)
+
     # Runtime events
 
     @staticmethod
@@ -1473,6 +1483,25 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             raise Exception(msg)
 
         return messages
+
+    async def _get_bulletin_embed(self, guild: discord.Guild) -> discord.Embed:
+        channel: discord.TextChannel = guild.get_channel(config.CHANNEL_TEXT)
+        emoji_jukebox: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_jukebox"))
+        role_listen: discord.Role = guild.get_role(config.ROLE_LISTEN)
+        role_default: discord.Role = guild.get_role(config.ROLE_DEFAULT)
+        embed: discord.Embed = discord.Embed(
+            title=strings.get("bulletin_title").format(strings.emoji_play),
+            description=strings.get("bulletin_text").format(
+                strings.emoji_connection,
+                emoji_jukebox,
+                channel.mention,
+                role_listen.mention,
+                role_default.mention),
+            colour=get_embed_colour(guild),
+            url="https://discord.com/channels/392995143428341762/1021393197978619924"
+        )
+        embed.set_thumbnail(url=emoji_jukebox.url)
+        return embed
 
 
 # Utility functions
