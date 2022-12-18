@@ -41,6 +41,7 @@
   "jukebox_added_one": "Added track `{2}.` (`{1}`) **{0}**",
   "jukebox_added_many": "Added **{0}** with **{3}** track(s) (`{1}`), starting from track {2}",
   "jukebox_found_title": "{0} is choosing a track…",
+  "jukebox_found_lyrics": "{0} is choosing a song…",
   "jukebox_found_item": "{2}\t**{0}** (`{1}`)",
   "jukebox_found_placeholder": "",
   "jukebox_found_description": "{0} — {1}",
@@ -61,8 +62,8 @@
   "jukebox_leaderboard_title": "Top of the pops",
   "jukebox_leaderboard_top": "{2} {0}** — {1}**",
   "jukebox_leaderboard_item": "{2} {0} — {1}",
-  "jukebox_leaderboard_count": "  …and {0} others.",
-  "jukebox_lyrics_more": "\n\n*{0} more lines*",
+  "jukebox_leaderboard_count": "  *…and {0} more listeners*",
+  "jukebox_lyrics_more": "\n\n  *…and {0} more lines*",
   "jukebox_lyrics_credit": "Powered by Genius",
 
   "status_playing": "{1}\tNow playing: {0}",

@@ -169,7 +169,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 name=title
             )
 
-    class AmbiguousSearchView(discord.ui.View):
+    class AmbiguousTrackView(discord.ui.View):
         """
         Component view for a track selection menu used with ambiguous search commands.
         """
@@ -177,7 +177,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             super().__init__()
 
             self.added_by = added_by
-            self.add_item(Commands.AmbiguousSearchSelect(entries=entries))
+            self.add_item(Commands.AmbiguousTrackSelect(entries=entries))
 
         async def interaction_check(self, interaction: Interaction, /) -> bool:
             """
@@ -186,7 +186,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             """
             return self.added_by.id == interaction.user.id
 
-    class AmbiguousSearchSelect(discord.ui.Select):
+    class AmbiguousTrackSelect(discord.ui.Select):
         """
         Component view item for selecting a track from a limited set of similar results.
         """
@@ -261,6 +261,74 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if embed:
                 await interaction.response.edit_message(embed=embed, view=None)
 
+    class AmbiguousLyricsView(discord.ui.View):
+        """
+        Component view for a lyrics selection menu used with ambiguous search commands.
+        """
+        def __init__(self, entries: List[dict], added_by: discord.User):
+            super().__init__()
+
+            self.added_by = added_by
+            self.add_item(Commands.AmbiguousLyricsSelect(entries=entries))
+
+    class AmbiguousLyricsSelect(discord.ui.Select):
+        """
+        Component view item for selecting lyrics from a limited set of similar results.
+        """
+
+        VALUE_CANCEL: str = "CANCEL"
+
+        def __init__(self, entries: List[dict]):
+            # Trim entries down to max allowed in a select menu
+            self.entries: List[dict] = entries[:25]
+
+            # Lyrics result items
+            options: List[discord.SelectOption] = [discord.SelectOption(
+                label=song.get("title"),
+                value=str(i),
+                description=strings.get("jukebox_found_description").format(
+                    song.get("artist_names"),
+                    song.get("release_date_components").get("year"))
+                if song.get("release_date_components")
+                else song.get("artist_names"),
+                emoji=strings.emoji_digits[i + 1]
+            ) for i, song in enumerate(entries)]
+
+            # Cancel interaction item
+            options.append(discord.SelectOption(
+                label=strings.get("jukebox_found_cancel"),
+                value=self.VALUE_CANCEL,
+                emoji=strings.emoji_cancel))
+
+            super().__init__(
+                placeholder=strings.get("jukebox_found_placeholder"),
+                min_values=0,
+                max_values=1,
+                options=options)
+
+        async def callback(self, interaction: Interaction) -> Any:
+            """
+            Override.
+            Handles interactions with track result options in select item.
+            """
+            if not any(self.values):
+                return
+
+            if self.values[0] == self.VALUE_CANCEL:
+                # Delete original message on cancel
+                await interaction.message.delete()
+                return
+
+            # Generate response
+            await interaction.response.defer()
+            genius: Genius = get_genius()
+            entry: dict = self.entries[int(self.values[0])]
+            response: dict = genius.song(song_id=entry.get("id"))
+            lyrics: str = genius.lyrics(song_url=entry.get("url"))
+            song: Song = Song(json_dict=response, lyrics=lyrics)
+            embed: discord.Embed = get_lyrics_embed(guild=interaction.guild, song=song)
+            await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=None)
+
     # Values
 
     bot: commands.Bot = None
@@ -321,7 +389,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg = strings.get("error_download")
 
             if embed:
-                view: Commands.AmbiguousSearchView = Commands.AmbiguousSearchView(entries=entries, added_by=ctx.author)
+                view: Commands.AmbiguousTrackView = Commands.AmbiguousTrackView(entries=entries, added_by=ctx.author)
                 await ctx.reply(embed=embed, view=view)
             elif msg:
                 await ctx.reply(content=msg)
@@ -795,6 +863,42 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Trusted user commands
 
+    @commands.command(name="lyrics?", aliases=["l?"])
+    @commands.check(is_trusted)
+    @commands.check(is_voice_only)
+    async def lyrics_ambiguous(self, ctx: Context, *, query: str = None) -> None:
+        """
+        :param ctx:
+        :param query: A generic search query relating to an artist, album, or song title.
+        """
+        msg: Optional[str] = None
+        embed: Optional[discord.Embed] = None
+        genius: Genius = get_genius()
+
+        async with ctx.typing():
+            # Resolve query
+            query = parse_query(query=query)
+            if not query and jukebox.is_empty():
+                embed = get_empty_queue_embed(guild=ctx.guild)
+            else:
+                # Generate response
+                response: dict = genius.search_songs(search_term=query)
+                entries: List[Dict[str, str]] = [hit.get("result") for hit in response.get("hits", [])]
+                if not any(entries):
+                    msg = strings.get("error_lyrics_not_found").format(query)
+                else:
+                    title: str = strings.get("jukebox_found_lyrics").format(ctx.author.display_name)
+                    embed = discord.Embed(
+                        colour=get_embed_colour(ctx.guild))
+                    embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
+
+            if embed:
+                view: Commands.AmbiguousLyricsView = Commands.AmbiguousLyricsView(entries=entries, added_by=ctx.author)
+                await ctx.reply(embed=embed, view=view)
+                pass
+            elif msg:
+                await ctx.reply(content=msg)
+
     @commands.command(name="lyrics", aliases=["l"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
@@ -806,9 +910,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
-        genius: Genius = Genius(config.TOKEN_LYRICS)
-        genius.timeout = config.HTTP_SEARCH_TIMEOUT
-        genius.verbose = True
+        genius: Genius = get_genius()
 
         async with ctx.typing():
             # Resolve query
@@ -816,46 +918,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if not query and jukebox.is_empty():
                 embed = get_empty_queue_embed(guild=ctx.guild)
             else:
+                # Generate response
                 song: Optional[Song] = genius.search_song(title=query)
                 if not song:
                     msg = strings.get("error_lyrics_not_found").format(query)
                 else:
-                    heading: str = song.artist
-                    title: str = song.title
-                    text: str = song.lyrics
-                    url: str = song.url
-
-                    # Crop useless artefacts out of raw text
-                    text = re.sub(r"You might also like|\d*Embed", "", text.split("Lyrics", 1)[1])
-
-                    # Crop text to fit character limit
-                    limit_chars: int = config.LYRICS_CHARACTER_LIMIT
-                    limit_lines: int = config.LYRICS_LINE_LIMIT
-                    text_limited: str = "\n".join(text.split("\n", limit_lines))[:limit_chars].strip()
-                    text_after_limit: List[str] = text[len(text_limited):].split("\n")
-
-                    # Vanity text for lines remaining
-                    text = text_limited + "…" + strings.get("jukebox_lyrics_more").format(len(text_after_limit)) \
-                        if any(line for line in text_after_limit if line.strip()) \
-                        else text_limited
-
-                    # Italicise context tags
-                    text = re.sub(r"\[.+\]", lambda match: f"*{match.group()}*", text)
-
-                    # Create embed
-                    emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_vinyl"))
-                    embed = discord.Embed(
-                        title=title,
-                        description=text,
-                        url=url,
-                        colour=get_embed_colour(ctx.guild))
-                    embed \
-                        .set_author(name=heading) \
-                        .set_footer(
-                            text=strings.get("jukebox_lyrics_credit"),
-                            icon_url="https://assets.genius.com/images/apple-touch-icon.png") \
-                        .set_thumbnail(url=emoji.url)
-
+                    embed = get_lyrics_embed(guild=ctx.guild, song=song)
             if msg or embed:
                 await ctx.reply(
                     content=msg,
@@ -1559,6 +1627,45 @@ def get_empty_queue_msg():
     msg = strings.get("jukebox_empty").format(emoji)
     return msg
 
+def get_lyrics_embed(guild: discord.Guild, song: Song) -> discord.Embed:
+    heading: str = song.artist
+    title: str = song.title
+    text: str = song.lyrics
+    url: str = song.url
+
+    # Crop useless artefacts out of raw text
+    text = re.sub(r"You might also like|\d*Embed", "", text.split("Lyrics", 1)[1])
+
+    # Crop text to fit character limit
+    limit_chars: int = config.LYRICS_CHARACTER_LIMIT
+    limit_lines: int = config.LYRICS_LINE_LIMIT
+    text_limited: str = "\n".join(text.split("\n", limit_lines))[:limit_chars].strip()
+    text_after_limit: List[str] = text[len(text_limited):].split("\n")
+
+    # Vanity text for lines remaining
+    text = text_limited + "…" + strings.get("jukebox_lyrics_more").format(len(text_after_limit)) \
+        if any(line for line in text_after_limit if line.strip()) \
+        else text_limited
+
+    # Italicise context tags
+    text = re.sub(r"\[.+\]", lambda match: f"*{match.group()}*", text)
+
+    # Create embed
+    emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_vinyl"))
+    embed: discord.Embed = discord.Embed(
+        title=title,
+        description=text,
+        url=url,
+        colour=get_embed_colour(guild))
+    embed \
+        .set_author(name=heading) \
+        .set_footer(
+            text=strings.get("jukebox_lyrics_credit"),
+            icon_url="https://assets.genius.com/images/apple-touch-icon.png") \
+        .set_thumbnail(url=emoji.url)
+
+    return embed
+
 async def ensure_voice() -> None:
     """
     Attempts to join the configured voice channel.
@@ -1613,6 +1720,12 @@ def format_user_playtime(sec: int) -> str:
         int(mins % 60),
         int(mins / 60)
     )
+
+def get_genius() -> Genius:
+    genius: Genius = Genius(config.TOKEN_LYRICS)
+    genius.timeout = config.HTTP_SEARCH_TIMEOUT
+    genius.verbose = True
+    return genius
 
 
 # Discord.py boilerplate
