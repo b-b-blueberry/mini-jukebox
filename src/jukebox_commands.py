@@ -1556,10 +1556,13 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
     """
     embed: discord.Embed
     current: JukeboxItem = jukebox.current_track()
+    emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
     description_played: str = strings.get("jukebox_played").format(
         previous_track.title,
         format_duration(sec=previous_track.audio.duration())) \
         if previous_track else None
+    thumbnail_url: str = None
+    image_url: str = None
     if not current:
         # Show embed for empty queue
         embed = get_empty_queue_embed(guild=guild)
@@ -1578,7 +1581,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
 
         if show_tracking and current.audio:
             # track progress bar
-            tracking_str: list = ["▬"] * min(14, max(6, len(current.title) - 6))
+            tracking_str: list = ["▬"] * min(10, max(6, len(current.title) - 6))
             tracking_str[floor(len(tracking_str) * current.audio.ratio())] = \
                 strings.emoji_blue_circle if random.randint(0, 200) > 0 \
                 else str(utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_nukebox")))
@@ -1586,23 +1589,27 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
                 "".join(tracking_str),
                 format_duration(sec=current.audio.progress()),
                 format_duration(sec=current.audio.duration()),
+                format_duration(sec=current.audio.duration() - current.audio.progress()),
                 current.added_by.mention) + (("\n" + description) if description else "")
+            image_url = current.thumbnail
         elif not description:
             # added-by user
             description = strings.get("jukebox_current_added_by").format(
                 current.added_by.mention,
                 format_duration(sec=current.duration))
 
+        # embed icon
+        thumbnail_url = emoji.url if show_tracking else current.thumbnail
+
         # queue summary
-        emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
         embed = discord.Embed(
             title=title,
             description=description,
             colour=get_embed_colour(guild),
-            url=current.url
-            if current
-            else None)
-        embed.set_thumbnail(url=emoji.url)
+            url=current.url if current else None)
+        embed.set_thumbnail(url=thumbnail_url)
+        if image_url:
+            embed.set_image(url=image_url)
     return embed
 
 def get_empty_queue_embed(guild: discord.Guild, description: Optional[str] = None) -> discord.Embed:

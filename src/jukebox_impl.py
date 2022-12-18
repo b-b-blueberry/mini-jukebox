@@ -148,6 +148,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 title=entry.get("title"),
                 url=entry.get("original_url"),
                 duration=int(entry.get("duration")),
+                thumbnail=entry.get("thumbnail"),
                 added_by=added_by)
 
 
@@ -155,12 +156,13 @@ class JukeboxItem:
     """
     Item representing a track in the queue, containing basic media metadata, source URL, and audio data once playing.
     """
-    def __init__(self, source: str, title: str, url: str, duration: int, added_by: discord.member) -> None:
+    def __init__(self, source: str, title: str, url: str, duration: int, thumbnail: str, added_by: discord.member) -> None:
         self.source: str = source
         self.title: str = title
         self.url: str = url
         self.duration: int = duration
         self.added_by: discord.User = added_by
+        self.thumbnail: str = thumbnail
         self.audio: Optional[TrackingAudio] = None
 
     def audio_from_source(self) -> TrackingAudio:
