@@ -21,6 +21,7 @@ import io
 import os
 import shutil
 from asyncio import AbstractEventLoop
+from sys import platform
 from typing import List, Optional, Union
 
 import discord
@@ -189,6 +190,9 @@ class Jukebox:
         self.is_looping: bool = False
         self.on_track_start_func = None
         self.on_track_end_func = None
+        # Windows will load Opus automatically. Linux needs to be manually told.
+        if platform.startswith('linux'):
+            discord.opus.load_opus('libopus.so.0')
 
     # Queue managers
 

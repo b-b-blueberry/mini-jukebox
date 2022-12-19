@@ -2,7 +2,9 @@ FROM python:3.8-alpine
 
 RUN apk add \
     build-base \
+    ffmpeg \
     libffi-dev \
+    opus-dev \
     sqlite
 
 ADD requirements.txt /jukebox/requirements.txt

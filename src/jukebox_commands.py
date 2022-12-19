@@ -50,7 +50,7 @@ import jukebox_impl
 import strings
 from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only, is_looping_enabled
 from jukebox_impl import jukebox, JukeboxItem
-from src.db import DBUser
+from db import DBUser
 
 
 class Vote:
