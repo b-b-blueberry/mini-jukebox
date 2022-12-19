@@ -95,6 +95,7 @@ class MusicBot(Bot):
             command_prefix=config.COMMAND_PREFIX,
             intents=config.DISCORD_INTENTS,
             description=strings.get("client_description"),
+            case_insensitive=True,
             allowed_mentions=discord.AllowedMentions.none())
         self.help_command = self.MusicHelpCommand()
         self.db = db
