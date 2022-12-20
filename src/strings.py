@@ -12,7 +12,7 @@ References:
 import json
 from typing import Dict, Optional
 
-from src.config import STRINGS_PATH
+from config import STRINGS_PATH
 
 
 with open(file=STRINGS_PATH, mode="r", encoding="utf8") as strings_file:
