@@ -159,12 +159,31 @@ class MusicBot(Bot):
                 # Suppress failed command parameters
                 reaction = strings.emoji_exclamation
             else:
+                # Notify and log other errors
+                reaction = strings.emoji_error
+                err.log(error)
+
+                if config.LOGGING_CHANNEL:
+                    # Send error message in log channel
+                    error_msg: str = strings.get("log_channel_command_error").format(
+                        ctx.author.name,
+                        ctx.author.discriminator,
+                        ctx.author.id,
+                        ctx.channel.mention,
+                        ctx.message.jump_url,
+                        strings.emoji_error)
+                    log_channel: discord.TextChannel = ctx.guild.get_channel(config.CHANNEL_LOG)
+                    error_file: discord.File = err.traceback_as_file(error.original)
+
+                    # Send error with stack trace as message attachment
+                    await log_channel.send(content=error_msg, file=error_file)
+
                 if isinstance(error, TimeoutError):
                     # Send message on connection timeout
                     msg = strings.get("info_connection_timed_out").format(strings.emoji_connection)
-                reaction = strings.emoji_error
-                err.log(error)
-                raise error
+                else:
+                    # Rethrow other errors
+                    raise error
         finally:
             if msg:
                 await ctx.reply(content=msg)

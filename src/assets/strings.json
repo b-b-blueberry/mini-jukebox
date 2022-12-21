@@ -20,9 +20,11 @@
   "log_console_media_end": "Complete: {0}",
   "log_console_media_removed": "Removed: {0}",
 
-  "log_channel_client_ready": "{3} Logged in as **{0}#{1}** (`{2}`)",
-  "log_channel_command_used": "{5} **{0}#{1} ({2})** used in {3}: `{4}`",
+  "log_channel_client_ready": "{3} Logged in as **{0}#{1} (`{2}`)**",
+  "log_channel_command_used": "{5} **{0}#{1} (`{2}`)** used in {3}: `{4}`",
+  "log_channel_command_error": "{5} **{0}#{1} (`{2}`)** encountered an error in {3}:\n{4}",
 
+  "datetime_format_log": "Error_%Y-%m-%d_%H-%M-%S",
   "datetime_format_track": "%M:%S",
   "datetime_format_playlist": "%H:%M:%S",
 
