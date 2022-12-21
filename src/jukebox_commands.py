@@ -433,13 +433,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
                         else:
                             # Playing a populated queue will continue from the current track
-                            current = jukebox.current_track()
-                            embed = get_current_track_embed(
-                                guild=ctx.guild,
-                                show_tracking=current and current.audio and current.audio.progress() > 5)
                             await ensure_voice()
                             if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
                                 jukebox.play()
+
+                            current = jukebox.current_track()
+                            description = strings.get("jukebox_current_added_by").format(
+                                current.added_by.mention,
+                                format_duration(sec=current.duration))
+                            embed = get_current_track_embed(
+                                guild=ctx.guild,
+                                show_tracking=current and current.audio and current.audio.progress() > 5,
+                                description=description)
                 else:
                     # Otherwise, try to play a track based on the given URL or search query
                     entries: List[dict]
@@ -845,7 +850,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 num_users: int = Commands.bot.db.get_num_users()
                 num_others: int = num_users - num_to_show
                 if num_others > 0:
-                    top_users_str += "\n" + strings.get("jukebox_leaderboard_count").format(num_others)
+                    top_users_str += strings.get("jukebox_leaderboard_count").format(num_others)
                 embed.add_field(name=strings.get("jukebox_leaderboard_title"), value=top_users_str, inline=False)
 
             if msg or embed:
@@ -1621,11 +1626,13 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
                 format_duration(sec=current.audio.duration() - current.audio.progress()),
                 current.added_by.mention) + (("\n" + description) if description else "")
             image_url = current.thumbnail
-        elif not description:
+        else:
             # added-by user
-            description = strings.get("jukebox_current_added_by").format(
+            added_by_str: str = strings.get("jukebox_current_added_by").format(
                 current.added_by.mention,
                 format_duration(sec=current.duration))
+            if description and description != added_by_str:
+                description = f"{added_by_str}\n\n{description}"
 
         # embed icon
         thumbnail_url = emoji.url if show_tracking else current.thumbnail
@@ -1684,7 +1691,7 @@ def get_lyrics_embed(guild: discord.Guild, song: Song) -> discord.Embed:
         else text_limited
 
     # Italicise context tags
-    text = re.sub(r"\[.+\]", lambda match: f"*{match.group()}*", text)
+    text = re.sub(pattern=r"\[.+\]", repl=lambda match: f"*{match.group()}*", string=text)
 
     # Create embed
     emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_vinyl"))
