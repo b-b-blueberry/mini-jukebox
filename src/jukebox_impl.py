@@ -147,7 +147,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return JukeboxItem(
                 source=source,
                 title=entry.get("title"),
-                url=entry.get("original_url"),
+                url=entry.get("webpage_url"),
                 duration=int(entry.get("duration")),
                 thumbnail=entry.get("thumbnail"),
                 added_by=added_by)
