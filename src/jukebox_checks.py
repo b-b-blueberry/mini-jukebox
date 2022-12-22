@@ -66,5 +66,9 @@ async def is_voice_only(ctx: Context, send_message: bool = True) -> bool:
         await ctx.reply(content=msg)
     return facts
 
+async def is_channel_ok(ctx: Context) -> bool:
+    return ctx.channel.id == config.CHANNEL_TEXT \
+       or await is_admin(ctx=ctx, send_message=False)
+
 async def is_looping_enabled(ctx: Context) -> bool:
     return config.PLAYLIST_LOOPING

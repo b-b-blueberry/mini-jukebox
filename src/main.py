@@ -33,12 +33,11 @@ import db
 import err
 import jukebox_commands
 import strings
-from jukebox_checks import is_admin, CheckFailureQuietly
+from jukebox_checks import is_admin, CheckFailureQuietly, is_channel_ok
 from jukebox_impl import jukebox
 
 
 # Logging
-
 
 if config.LOGGING_FILE:
     logger: logging.Logger = logging.getLogger("discord")
@@ -146,7 +145,7 @@ class MusicBot(Bot):
         msg: Optional[str] = None
         reaction: Optional[str] = None
         try:
-            if isinstance(error, CheckFailureQuietly):
+            if isinstance(error, CheckFailureQuietly) or not await is_channel_ok(ctx=ctx):
                 # Quietly suppress certain failed command checks
                 return
             elif isinstance(error, commands.CheckFailure):
@@ -252,14 +251,13 @@ async def is_valid_command_use(ctx: Context) -> bool:
     is_bot: bool = ctx.author.bot
 
     # Ignore commands from channels other than the designated text channel (except commands used by admins)
-    is_channel_ok: bool = ctx.channel.id == config.CHANNEL_TEXT \
-        or await is_admin(ctx=ctx, send_message=False)
+    is_channel: bool = await is_channel_ok(ctx=ctx)
 
     # Ignore commands while commands are blocked (except commands used by admins)
     is_blocked: bool = bot.get_cog(config.COG_COMMANDS).is_blocking_commands \
         and not await is_admin(ctx=ctx, send_message=False)
 
-    if is_bot or not is_channel_ok or is_blocked:
+    if is_bot or not is_channel or is_blocked:
         raise CheckFailureQuietly()
 
     return True
