@@ -823,36 +823,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         async with ctx.typing():
             msg, embed = await self._do_print_user(ctx=ctx, query=str(Commands.bot.user.id))
-
-            # Print user leaderboards in addition to server stats:
-            if embed:
-                num_to_fetch: int = 25
-                num_to_show: int = 10 + 1
-                # Fetch list of top users from persistent data
-                top_users: List[DBUser] = Commands.bot.db.get_top_users(num_to_fetch)
-                top_users_dict: Dict[DBUser, Optional[discord.Member]] = {
-                    user: ctx.guild.get_member(user.user_id)
-                    for user in top_users}
-                # Filter out users who have left the server (i.e. user is not member, member is none)
-                top_users_dict = {
-                    user: top_users_dict[user]
-                    for user in top_users_dict.keys()
-                    if top_users_dict[user]}
-                # Print users from 1 to 10, where user 0 is assumed to be the jukebox bot user itself,
-                # as it should always have the most time listened of all users
-                top_users_str: str = "\n".join(
-                    strings.get("jukebox_leaderboard_item" if i > 3 else "jukebox_leaderboard_top").format(
-                        top_users_dict[user].mention,
-                        format_user_playtime(user.duration_listened),
-                        strings.emoji_digits[min(len(strings.emoji_digits) - 1, i)])
-                    for i, user in enumerate(top_users_dict.keys()) if 0 < i < num_to_show)
-                # Append number of other users in database, ignoring filters
-                num_users: int = Commands.bot.db.get_num_users()
-                num_others: int = num_users - num_to_show
-                if num_others > 0:
-                    top_users_str += strings.get("jukebox_leaderboard_count").format(num_others)
-                embed.add_field(name=strings.get("jukebox_leaderboard_title"), value=top_users_str, inline=False)
-
             if msg or embed:
                 await ctx.reply(content=msg, embed=embed)
 
