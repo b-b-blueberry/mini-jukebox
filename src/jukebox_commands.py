@@ -799,7 +799,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await ctx.reply(embed=embed)
 
     @commands.command(name="user", aliases=["u"])
-    @commands.check(is_default)
+    @commands.check(is_admin)
     async def print_user(self, ctx: Context, query: str = None) -> None:
         """
         Generate a formatted embed with info for a user's stats to send in the command channel.
@@ -814,7 +814,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 await ctx.reply(content=msg, embed=embed)
 
     @commands.command(name="jukebox", aliases=["j"])
-    @commands.check(is_default)
+    @commands.check(is_admin)
     async def print_jukebox(self, ctx: Context) -> None:
         """
         Generate a formatted embed with info for the jukebox stats to send in the command channel.
