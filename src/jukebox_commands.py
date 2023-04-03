@@ -1191,7 +1191,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         current: JukeboxItem = jukebox.current_track()
         if not after.channel or not after.channel.id == config.CHANNEL_VOICE or after.deaf or after.self_deaf:
             # Dismiss users who have left the voice channel or have deafened themselves
-            Commands.listening_users.pop(member.id)
+            if member.id in Commands.listening_users.keys():
+                Commands.listening_users.pop(member.id)
         elif after.channel and after.channel.id == config.CHANNEL_VOICE:
             # Note the time that the user joined the voice channel or undeafened themselves
             Commands.listening_users[member.id] = current.audio.progress() if current and current.audio else 0
