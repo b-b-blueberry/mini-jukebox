@@ -27,7 +27,11 @@ import yt_dlp
 
 # Runtime
 
-CONFIG_PATH: str = "/private/config.json"
+TEMP_DIR: str = "/private/temp"
+"""Relative path to temporary folder used to store cached media data."""
+LOG_DIR: str = "/private/logs"
+"""Relative path to temporary folder used to store session logs."""
+CONFIG_PATH: str = "/private/config-blueberry.json"
 """Relative path to data file used for bot configuration."""
 STRINGS_PATH = "/jukebox/assets/strings.json"
 """Relative path to data file used for logging, formatting, reply, and flavour strings."""
@@ -35,10 +39,8 @@ PINS_PATH = "/jukebox/assets/pins.json"
 """Relative path to data file used for pinned message contents in text channel."""
 DATABASE_PATH: str = "/private/jukebox.db"
 """Relative path to database file used to store usage history."""
-LOG_PATH: str = "/private/discord.log"
+LOG_PATH: str = os.path.join(LOG_DIR, "discord.log")
 """Relative path to runtime log files."""
-TEMP_DIR: str = "/private/temp"
-"""Relative path to temporary folder used to store cached media data."""
 
 # Bot
 
