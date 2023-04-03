@@ -33,5 +33,5 @@ def traceback_as_file(error: Exception) -> discord.File:
     s: StringIO = StringIO()
     s.write(format_traceback(error))
     s.seek(0)
-    fp = datetime.now().strftime(strings.get("datetime_format_log")) + ".txt"
+    fp = datetime.now().strftime("Error_" + strings.get("datetime_format_log")) + ".txt"
     return discord.File(s, filename=fp)
