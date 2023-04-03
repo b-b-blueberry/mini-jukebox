@@ -12,6 +12,7 @@ Contents:
             Init
             Bot events
             Bot utilities
+    Utilities
     Init
     Runtime events
     Global commands
@@ -20,6 +21,8 @@ Contents:
 
 import asyncio
 import logging
+import os
+import shutil
 from logging.handlers import RotatingFileHandler
 from importlib import reload
 from typing import Optional
@@ -37,8 +40,26 @@ from jukebox_checks import is_admin, CheckFailureQuietly, is_channel_ok
 from jukebox_impl import jukebox
 
 
+# Utilities
+
+
+def _clear_temp_folders() -> None:
+    """
+    Clear all temporary files and folders, removing any cached or preloaded media, and restoring the empty folders.
+    """
+    try:
+        fp: str = config.LOG_DIR
+        if os.path.exists(fp):
+            shutil.rmtree(fp)
+        os.mkdir(fp)
+    except Exception as error:
+        err.log(error)
+
+
 # Logging
 
+
+_clear_temp_folders()
 if config.LOGGING_FILE:
     logger: logging.Logger = logging.getLogger("discord")
     handler: RotatingFileHandler = RotatingFileHandler(
