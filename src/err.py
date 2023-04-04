@@ -11,7 +11,7 @@ from typing import List
 
 import discord
 
-from src import strings
+import strings
 
 
 def log(error: Exception) -> None:
