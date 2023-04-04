@@ -18,6 +18,7 @@ Contents:
 
 import asyncio
 import io
+import logging
 import os
 import shutil
 from asyncio import AbstractEventLoop
@@ -87,8 +88,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
         :param query: A generic search query or URL to use with YTDLP, searching queries with the default domain.
         :param loop: Bot async event loop.
         """
-        if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
-            print(strings.get("log_console_media_query").format(query))
+        log_msg: str = strings.get("log_console_media_query").format(query)
+        if config.LOGGING_CONSOLE:
+            print(log_msg)
+        if config.LOGGING_FILE:
+            logging.getLogger("discord").debug(log_msg)
 
         loop = loop or asyncio.get_event_loop()
 
@@ -120,9 +124,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
             source = response.get("url") if "url" in response else entries[0].get("url")
             num_failed = num_listed - len(entries)
 
-            if ytdlconn.params.get("listformats") or config.LOGGING_CONSOLE:
-                if config.LOGGING_CONSOLE:
-                    print(strings.get("log_console_media_response").format(source))
+            log_msg: str = strings.get("log_console_media_response").format(source)
+            if config.LOGGING_CONSOLE:
+                print(log_msg)
+            if config.LOGGING_FILE:
+                logging.getLogger("discord").debug(log_msg)
 
         return entries, title, source, num_failed
 
@@ -338,8 +344,11 @@ class Jukebox:
             # Stop currently-playing track before removal, invoking after-play behaviour which calls this method itself
             self.stop()
         else:
+            log_msg: str = strings.get("log_console_media_removed").format(track.title)
             if config.LOGGING_CONSOLE:
-                print(strings.get("log_console_media_removed").format(track.title))
+                print(log_msg)
+            if config.LOGGING_FILE:
+                logging.getLogger("discord").debug(log_msg)
 
             # Remove track from queue
             queue: List[JukeboxItem] = self.get_queue(track.added_by.id)
@@ -361,8 +370,11 @@ class Jukebox:
         # Play or resume the jukebox queue
         current: JukeboxItem = self.current_track()
         if current and self.voice_client and not self.voice_client.is_playing():
+            log_msg: str = strings.get("log_console_media_start").format(current.title)
             if config.LOGGING_CONSOLE:
-                print(strings.get("log_console_media_start").format(current.title))
+                print(log_msg)
+            if config.LOGGING_FILE:
+                logging.getLogger("discord").debug(log_msg)
 
             if not self.voice_client.is_paused():
                 self._before_play()
@@ -467,8 +479,11 @@ class Jukebox:
             if self.is_looping:
                 self.append(track)
 
+            log_msg: str = strings.get("log_console_media_end").format(track.title)
             if config.LOGGING_CONSOLE:
-                print(strings.get("log_console_media_end").format(track.title))
+                print(log_msg)
+            if config.LOGGING_FILE:
+                logging.getLogger("discord").debug(log_msg)
 
         if config.PLAYLIST_MULTIQUEUE and any(queue) and queue in self._multiqueue and len(self._multiqueue) > 1:
             # Move the current queue to the end of the multiqueue

@@ -45,9 +45,6 @@ from jukebox_impl import jukebox
 
 
 def _clear_temp_folders() -> None:
-    """
-    Clear all temporary files and folders, removing any cached or preloaded media, and restoring the empty folders.
-    """
     try:
         fp: str = config.LOG_DIR
         if os.path.exists(fp):
@@ -240,24 +237,25 @@ class MusicBot(Bot):
         """
         if await is_valid_command_use(ctx=ctx):
             user = ctx.message.author
-            if config.LOGGING_CONSOLE:
-                msg = strings.get("log_console_command_used").format(
+            log_msg: str = strings.get("log_console_command_used").format(
                     user.name,
                     user.discriminator,
                     user.id,
                     ctx.message.content)
-                print(msg)
-
+            if config.LOGGING_CONSOLE:
+                print(log_msg)
+            if config.LOGGING_FILE:
+                logging.getLogger("discord").debug(log_msg)
             if config.LOGGING_CHANNEL:
                 emoji = await commands.EmojiConverter().convert(ctx=ctx, argument=strings.get("emoji_id_jukebox"))
-                msg = strings.get("log_channel_command_used").format(
+                log_msg = strings.get("log_channel_command_used").format(
                     user.name,
                     user.discriminator,
                     user.id,
                     ctx.channel.mention,
                     ctx.message.content,
                     emoji)
-                await self.get_channel(config.CHANNEL_LOG).send(content=msg)
+                await self.get_channel(config.CHANNEL_LOG).send(content=log_msg)
 
 
 # Init
