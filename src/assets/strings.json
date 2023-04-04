@@ -108,6 +108,8 @@
   "info_uptime_heading_cog": "Commands:",
   "info_uptime_bot": "Uptime: `{0}d {1}h {2}m {3}s`\nStarted: `{4}`",
   "info_uptime_cog": "Started: `{0}`",
+  "info_logs": "Log files for process started at `{0}` UTC\nMini-Jukebox uses a rotating file handler, meaning earlier logs may have been overwritten.\nCheck the datemarks in the leading column when reading log files. Datemarks are given in local time (UTC {1}).",
+  "info_logs_none": "Log files for process started at `{0}` UTC\nNo log files were found.",
   "info_package_minor": "**Minor modules:**\n",
   "info_package_major": "**Major modules:**\n",
   "info_package_major_entry": "Version {0}\n{1}\n{2}",

@@ -29,6 +29,9 @@ Contents:
 """
 
 import json
+import os
+from io import StringIO
+
 import pkg_resources
 import random
 import re
@@ -1247,6 +1250,28 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         ]))
 
         await ctx.reply(embed=embed)
+
+    @commands.command(name="logs", aliases=["log"], hidden=True)
+    @commands.check(is_admin)
+    async def send_logs(self, ctx: Context) -> None:
+        fps: List[str] = [
+            os.path.join(config.LOG_DIR, file)
+            for file in os.listdir(config.LOG_DIR)
+            if os.path.splitext(file)[-1] == ".log"
+        ]
+        files: List[discord.File] = []
+        for fp in fps:
+            with open(file=fp, mode="r", encoding="utf8") as file:
+                s: StringIO = StringIO()
+                s.write(file.read())
+                s.seek(0)
+                files.append(discord.File(s, filename=os.path.basename(fp)))
+
+        hours: float = float(datetime.now().astimezone().strftime("%z")) / 100
+        msg: str = strings.get("info_logs" if files else "info_logs_none").format(
+            Commands.bot.start_time.strftime(strings.get("datetime_format_uptime")),
+            f"+{hours}" if hours > 0 else hours)
+        await ctx.reply(content=msg, files=files)
 
     # Runtime events
 
