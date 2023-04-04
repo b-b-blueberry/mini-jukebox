@@ -29,12 +29,16 @@ Contents:
 """
 
 import json
+import pkg_resources
 import random
 import re
+import sys
 from datetime import datetime
 from importlib import reload
+from importlib import metadata
 from math import ceil, floor
 from typing import List, Dict, Union, Optional, Any, Tuple
+from urllib import request
 
 import discord
 import yt_dlp
@@ -1207,6 +1211,43 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed.add_field(name=strings.get("info_uptime_heading_cog"), value=msg, inline=False)
 
         await ctx.reply(embed=embed)
+
+    @commands.command(name="versions", aliases=["ver"], hidden=True)
+    @commands.check(is_admin)
+    async def send_versions(self, ctx: Context) -> None:
+        msg: str
+        embed: discord.Embed = discord.Embed(colour=get_embed_colour(ctx.guild))
+
+        # List major packages with additional information and source links
+        embed.description = strings.get("info_package_major")
+        embed.set_footer(text="Python " + sys.version)
+        packages: dict = pkg_resources.working_set.by_key
+        for key in config.PACKAGE_CHECKS:
+            meta_dict: dict = dict(metadata.metadata(key))
+            url = f'https://pypi.python.org/pypi/{key}/json'
+            releases = json.loads(request.urlopen(url).read())['releases']
+            msg = strings.get("info_package_major_entry").format(
+                meta_dict["Version"],
+                meta_dict["Summary"],
+                meta_dict["Home-page"])
+            release_key: str = list(releases.keys())[-1]
+            if release_key != meta_dict["Version"]:
+                msg += strings.get("info_package_update").format(
+                    strings.emoji_star,
+                    release_key,
+                    re.split(r"([a-z])", releases[release_key][-1]["upload_time"], 1, flags=re.I)[0]
+                )
+            embed.add_field(name=meta_dict["Name"], value=msg, inline=False)
+
+        # List minor packages with minimal name and version information
+        embed.add_field(name=strings.get("info_package_minor"), value="  ".join([
+            strings.get("info_package_minor_entry").format(key, packages[key].version)
+            for key in packages
+            if key not in config.PACKAGE_CHECKS
+        ]))
+
+        await ctx.reply(embed=embed)
+
     # Runtime events
 
     @staticmethod

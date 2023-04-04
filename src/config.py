@@ -144,6 +144,13 @@ LYRICS_SEARCH_TIMEOUT: int = cfg["lyrics"]["response_timeout_seconds"]
 LYRICS_VERBOSE: bool = cfg["lyrics"]["verbose"]
 """Whether lyrics provider will use verbose logging."""
 
+# DB
+
+# Packages
+
+PACKAGE_CHECKS: List[str] = cfg["packages"]["check"]
+"""List of package names to list on version checks."""
+
 # YTDL
 
 YTDL_ALLOWED_EXTRACTORS: List[str] = cfg["ytdl"]["allowed_extractors"]
