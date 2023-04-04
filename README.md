@@ -2,9 +2,9 @@
 
 Yet another Discord music bot, designed for the Stardew Valley community Discord server.
 
-Written by blueberry et al., 2022-
+Written by blueberry et al., 2022-2023
 
-https://github.com/StardewValleyDiscord/mini-jukebox
+https://github.com/b-b-blueberry/mini-jukebox
 
 https://discord.gg/stardewvalley
 

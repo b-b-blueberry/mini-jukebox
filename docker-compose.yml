@@ -1,7 +1,7 @@
 version: '3'
 services:
     jukebox:
-        image: aquova/jukebox:latest
+        image: jukebox:latest
         restart: unless-stopped
         volumes:
             - ./src:/jukebox
