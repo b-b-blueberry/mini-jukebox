@@ -29,6 +29,7 @@
   "datetime_format_log": "%Y-%m-%d_%H-%M-%S",
   "datetime_format_track": "%M:%S",
   "datetime_format_playlist": "%H:%M:%S",
+  "datetime_format_uptime": "%Y/%m/%d - %H:%M:%S",
 
   "duration_format_user_short": "{0} minutes",
   "duration_format_user_long": "{1} hours, {0} minutes",
@@ -103,6 +104,10 @@
   "info_edit_message": "Edited message in {0}:\n{1}",
   "info_update_pinned_messages": "Updated pinned messages in {0}:\n{1}",
   "info_update_avatar": "Updated avatar to {0}",
+  "info_uptime_heading_bot": "Jukebox:",
+  "info_uptime_heading_cog": "Commands:",
+  "info_uptime_bot": "Uptime: `{0}d {1}h {2}m {3}s`\nStarted: `{4}`",
+  "info_uptime_cog": "Started: `{0}`",
   "info_reason": "Requested by {0}#{1} ({2})",
   "info_unknown": "???",
 

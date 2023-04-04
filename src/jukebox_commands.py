@@ -337,6 +337,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     """Whether commands are blocked for non-admin users."""
     listening_users: Dict[int, int] = {}
     """Map of users in the voice channel on track playback started, and the track timestamp they joined at."""
+    start_time: datetime = datetime.utcnow()
+    """Datetime instance recording start time for commands cog."""
 
     # Constants
 
@@ -1181,6 +1183,30 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get(emoji_id))
             await message.add_reaction(emoji)
 
+    @commands.command(name="uptime", aliases=["runtime"], hidden=True)
+    @commands.check(is_admin)
+    async def send_uptime(self, ctx: Context):
+        """
+        Prints start and current running times for the bot.
+        """
+        msg: str
+        embed: discord.Embed = discord.Embed(colour=get_embed_colour(ctx.guild))
+
+        delta_uptime = datetime.utcnow() - Commands.bot.start_time
+        hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        days, hours = divmod(hours, 24)
+
+        msg = strings.get("info_uptime_bot").format(
+            days, hours, minutes, seconds,
+            Commands.bot.start_time.strftime(strings.get("datetime_format_uptime")))
+        embed.add_field(name=strings.get("info_uptime_heading_bot"), value=msg, inline=False)
+
+        msg = strings.get("info_uptime_cog").format(
+            Commands.start_time.strftime(strings.get("datetime_format_uptime")))
+        embed.add_field(name=strings.get("info_uptime_heading_cog"), value=msg, inline=False)
+
+        await ctx.reply(embed=embed)
     # Runtime events
 
     @staticmethod
