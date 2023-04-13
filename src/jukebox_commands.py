@@ -1778,7 +1778,8 @@ async def ensure_voice() -> None:
     Attempts to join the configured voice channel.
     """
     voice_channel: discord.VoiceChannel = jukebox.bot.get_channel(config.CHANNEL_VOICE)
-    if not isinstance(jukebox.voice_client, discord.VoiceClient) \
+    if not jukebox.voice_client \
+            or not isinstance(jukebox.voice_client, discord.VoiceClient) \
             or not jukebox.voice_client.is_connected() \
             or not jukebox.voice_client.channel \
             or not jukebox.voice_client.channel.id == voice_channel.id:
