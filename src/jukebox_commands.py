@@ -1052,13 +1052,13 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_mango"))
         await ctx.message.add_reaction(emoji)
 
-    @commands.command(name="refresh", hidden=True)
+    @commands.command(name="reloadcommands", aliases=[], hidden=True)
     @commands.check(is_admin)
-    async def refresh_commands(self, ctx: Context) -> None:
+    async def reload_commands(self, ctx: Context) -> None:
         """
         Reloads the commands extension, reapplying code changes and reloading the strings data file.
         """
-        print("Refreshing commands. [{0}#{1} ({2})]".format(
+        print("Reloading commands. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id))
