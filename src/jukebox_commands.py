@@ -1216,7 +1216,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
         await ctx.reply(embed=embed)
 
-    @commands.command(name="versions", aliases=["ver"], hidden=True)
+    @commands.command(name="versions", aliases=["version", "vers", "ver"], hidden=True)
     @commands.check(is_admin)
     async def send_versions(self, ctx: Context) -> None:
         msg: str
