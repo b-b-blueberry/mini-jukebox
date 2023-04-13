@@ -798,7 +798,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if embed:
                 await ctx.reply(embed=embed)
 
-    @commands.command(name="current", aliases=["e"])
+    @commands.command(name="current", aliases=["c"])
     @commands.check(is_default)
     async def print_current(self, ctx: Context) -> None:
         """
