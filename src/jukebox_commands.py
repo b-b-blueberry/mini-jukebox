@@ -55,7 +55,7 @@ import config
 import jukebox_checks
 import jukebox_impl
 import strings
-from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only, is_looping_enabled
+from jukebox_checks import is_admin, is_trusted, is_default, is_voice_only, is_looping_enabled, is_pausing_enabled
 from jukebox_impl import jukebox, JukeboxItem
 from db import DBUser
 
@@ -916,6 +916,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     @commands.command(name="pause", aliases=["p"])
     @commands.check(is_trusted)
     @commands.check(is_voice_only)
+    @commands.check(is_pausing_enabled)
     async def toggle_pause(self, ctx: Context) -> None:
         """
         Pauses or resumes the currently-playing track with no change to the tracking.

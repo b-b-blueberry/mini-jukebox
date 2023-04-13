@@ -83,3 +83,6 @@ async def is_channel_ok(ctx: Context) -> bool:
 
 async def is_looping_enabled(ctx: Context) -> bool:
     return config.PLAYLIST_LOOPING
+
+async def is_pausing_enabled(ctx: Context) -> bool:
+    return config.PLAYLIST_PAUSING

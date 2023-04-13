@@ -128,6 +128,8 @@ PLAYLIST_STREAMING: bool = cfg["jukebox"]["streaming_enabled"]
 """Whether media data will be streamed from external sources, or preloaded and sourced from local drive."""
 PLAYLIST_LOOPING: bool = cfg["jukebox"]["looping_enabled"]
 """Whether queues may be toggled to loop their tracks, reappending played tracks."""
+PLAYLIST_PAUSING: bool = cfg["jukebox"]["pausing_enabled"]
+"""Whether queues may be toggled to pause playback until next unpaused."""
 TRACK_DURATION_LIMIT: int = cfg["jukebox"]["track_duration_limit_seconds"]
 """Duration in seconds for track runtime before being blocked from the queue."""
 
