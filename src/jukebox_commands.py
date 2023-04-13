@@ -1274,6 +1274,20 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             f"+{hours}" if hours > 0 else hours)
         await ctx.reply(content=msg, files=files)
 
+    @commands.command(name="config", aliases=["cfg"], hidden=True)
+    @commands.check(is_admin)
+    async def send_config(self, ctx: Context) -> None:
+        cfg = None
+        with open(file=config.CONFIG_PATH, mode="r", encoding="utf8") as file:
+            js: dict = json.load(file)
+            js.pop("tokens")
+            s: StringIO = StringIO()
+            s.write(json.dumps(js, indent=2, sort_keys=False))
+            s.seek(0)
+            cfg = discord.File(s, filename=os.path.basename(config.CONFIG_PATH))
+        msg: str = strings.get("info_config").format(Commands.bot.start_time.strftime(strings.get("datetime_format_uptime")))
+        await ctx.reply(content=msg, file=cfg)
+
     # Runtime events
 
     @staticmethod
