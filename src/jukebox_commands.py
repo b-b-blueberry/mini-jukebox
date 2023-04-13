@@ -472,7 +472,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     if not source:
                         msg = strings.get("error_track").format(query)
                     elif not any(entries):
-                        msg = strings.get("error_track_one" if num_failed < 2 else "error_track_all")
+                        msg = strings.get("error_track" if num_failed < 2 else "error_track_all")
                     else:
                         extractor: str = entries[0].get("extractor").split(sep=":")[0] \
                             if entries[0] and "extractor" in entries[0].keys() \
