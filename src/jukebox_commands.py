@@ -962,13 +962,13 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Admin commands
 
-    @commands.command(name="exit", aliases=[])
+    @commands.command(name="leave", aliases=[])
     @commands.check(is_admin)
-    async def exit(self, ctx: Context) -> None:
+    async def leave_voice(self, ctx: Context) -> None:
         """
         Removes the bot from the voice channel and stops the currently-playing track.
         """
-        print("Exiting voice with {3} listeners. [{0}#{1} ({2})]".format(
+        print("Leaving voice with {3} listeners. [{0}#{1} ({2})]".format(
             ctx.author.name,
             ctx.author.discriminator,
             ctx.author.id,
