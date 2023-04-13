@@ -962,7 +962,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Admin commands
 
-    @commands.command(name="exit", aliases=["x"])
+    @commands.command(name="exit", aliases=[])
     @commands.check(is_admin)
     async def exit(self, ctx: Context) -> None:
         """
@@ -981,7 +981,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update rich presence
         await self._update_presence()
 
-    @commands.command(name="cleartracks", aliases=["c"])
+    @commands.command(name="cleartracks", aliases=[])
     @commands.check(is_admin)
     async def clear_tracks(self, ctx: Context) -> None:
         """
@@ -999,7 +999,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update rich presence
         await self._update_presence()
 
-    @commands.command(name="clearvotes", aliases=["v"])
+    @commands.command(name="clearvotes", aliases=[])
     @commands.check(is_admin)
     async def clear_votes(self, ctx: Context) -> None:
         """
@@ -1013,7 +1013,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await Vote.clear_votes()
         await ctx.message.add_reaction(strings.emoji_confirm)
 
-    @commands.command(name="block", aliases=["b"])
+    @commands.command(name="lock", aliases=[])
     @commands.check(is_admin)
     async def block_commands(self, ctx: Context) -> None:
         """
@@ -1026,7 +1026,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         Commands.is_blocking_commands = True
         await ctx.message.add_reaction(strings.emoji_lock_on)
 
-    @commands.command(name="unblock", aliases=["n"])
+    @commands.command(name="unlock", aliases=[])
     @commands.check(is_admin)
     async def unblock_commands(self, ctx: Context) -> None:
         """
@@ -1039,7 +1039,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         Commands.is_blocking_commands = False
         await ctx.message.add_reaction(strings.emoji_lock_off)
 
-    @commands.command(name="mango", aliases=["m"])
+    @commands.command(name="mango", aliases=[])
     @commands.check(is_admin)
     async def activate_mango(self, ctx: Context) -> None:
         """
