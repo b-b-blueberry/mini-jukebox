@@ -1132,7 +1132,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         await ctx.message.add_reaction(strings.emoji_confirm)
 
     @commands.command(name="avatar", hidden=True)
-    @commands.cooldown(rate=2, per=60*60*60, type=discord.ext.commands.BucketType.guild)
     @commands.check(is_admin)
     async def update_avatar(self, ctx: Context) -> None:
         """
@@ -1144,7 +1143,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.id))
 
         msg: str = None
-        file: discord.Attachment = None
+        attachment: discord.Attachment = None
+        original_avatar: discord.File = None
         size_denom: int = 1000 * 1000
         size_max: int = 8
 
@@ -1156,17 +1156,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 if not any(images_usable):
                     msg = strings.get("error_avatar_size").format(size_max)
                 else:
-                    file = images_usable[0]
-        if not file:
+                    attachment = images_usable[0]
+        if not attachment:
             if not msg:
                 msg = strings.get("error_avatar_not_found")
         else:
-            file_raw: bytes = await file.read()
-            await Commands.bot.user.edit(avatar=file_raw)
+            original_avatar = await Commands.bot.user.display_avatar.to_file()
+            attachment_bytes: bytes = await attachment.read()
+            await Commands.bot.user.edit(avatar=attachment_bytes)
             await ctx.message.add_reaction(strings.emoji_confirm)
-            msg = strings.get("info_update_avatar").format(file.filename)
+            msg = strings.get("info_update_avatar").format(attachment.filename)
 
-        await ctx.reply(content=msg)
+        await ctx.reply(content=msg, file=original_avatar)
 
     @commands.command(name="str", hidden=True)
     @commands.check(is_admin)

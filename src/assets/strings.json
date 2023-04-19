@@ -103,7 +103,7 @@
   "info_send_message": "Sent message in {0}:\n{1}",
   "info_edit_message": "Edited message in {0}:\n{1}",
   "info_update_pinned_messages": "Updated pinned messages in {0}:\n{1}",
-  "info_update_avatar": "Updated avatar to {0}",
+  "info_update_avatar": "Updated avatar to {0}.\nHere's my original display picture:",
   "info_uptime_heading_bot": "Jukebox:",
   "info_uptime_heading_cog": "Commands:",
   "info_uptime_bot": "Uptime: `{0}d {1}h {2}m {3}s`\nStarted: `{4}`",
