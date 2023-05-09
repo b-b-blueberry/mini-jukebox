@@ -1088,9 +1088,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         channel: discord.abc.GuildChannel = query_channel(guild=ctx.guild, query=query)
         if content and isinstance(channel, discord.TextChannel):
             message: discord.Message = await channel.send(content=content)
-            msg = strings.get("info_send_message").format(
-                channel.mention,
-                message.jump_url)
+            msg = strings.get("info_send_message").format(message.jump_url)
         else:
             msg = strings.get("error_send_message")
         await ctx.reply(content=msg)
@@ -1111,9 +1109,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         message: discord.Message = await get_guild_message(guild=ctx.guild, message_id=message_id)
         if content and message:
             await message.edit(content=content, embeds=message.embeds)
-            msg = strings.get("info_send_message").format(
-                message.channel.mention,
-                message.jump_url)
+            msg = strings.get("info_send_message").format(message.jump_url)
         else:
             msg = strings.get("error_send_message")
         await ctx.reply(content=msg)
