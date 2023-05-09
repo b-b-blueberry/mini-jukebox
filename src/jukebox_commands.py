@@ -1259,7 +1259,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         fps: List[str] = [
             os.path.join(config.LOG_DIR, file)
             for file in os.listdir(config.LOG_DIR)
-            if os.path.splitext(file)[-1] == ".log"
         ]
         files: List[discord.File] = []
         for fp in fps:
