@@ -549,6 +549,15 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Update rich presence
         await self._update_presence()
 
+    @commands.command(name="resume", aliases=["r"])
+    @commands.check(is_default)
+    @commands.check(is_voice_only)
+    async def resume(self, ctx: Context) -> None:
+        """
+        Resumes playback if paused. Equivalent to using Add command without a query.
+        """
+        await self.add(ctx)
+
     @commands.command(name="skip", aliases=["s"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
