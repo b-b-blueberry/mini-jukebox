@@ -467,7 +467,7 @@ class Jukebox:
             err.log(error)
 
         track: JukeboxItem = self.current_track()
-        queue: List[JukeboxItem] = self.get_queue(track.added_by.id)
+        queue: List[JukeboxItem] = self.get_queue(track.added_by.id) if track else None
 
         if track:
             # Remove the just-played track from the queue
@@ -486,7 +486,7 @@ class Jukebox:
             if config.LOGGING_FILE:
                 logging.getLogger("discord").debug(log_msg)
 
-        if config.PLAYLIST_MULTIQUEUE and any(queue) and queue in self._multiqueue and len(self._multiqueue) > 1:
+        if config.PLAYLIST_MULTIQUEUE and queue and any(queue) and queue in self._multiqueue and len(self._multiqueue) > 1:
             # Move the current queue to the end of the multiqueue
             self._multiqueue.append(self._multiqueue.pop(self._multiqueue.index(queue)))
 
