@@ -87,6 +87,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         Fetch playlist info for a search query or URL, returning media metadata and source URL on success.
         :param query: A generic search query or URL to use with YTDLP, searching queries with the default domain.
         :param loop: Bot async event loop.
+        :param ambiguous: Whether playlist info is being fetched for an ambiguous query.
         """
         log_msg: str = strings.get("log_console_media_query").format(query)
         if config.LOGGING_CONSOLE:
@@ -121,7 +122,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 return entries
 
             title = response.get("title") if "title" in response else None
-            source = response.get("url") if "url" in response else entries[0].get("url")
+            source = response.get("url") if "url" in response else entries[0].get("url") if any(entries) else None
             num_failed = num_listed - len(entries)
 
             log_msg: str = strings.get("log_console_media_response").format(source)
