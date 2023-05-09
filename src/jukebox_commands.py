@@ -849,7 +849,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="lyrics?", aliases=["l?"])
     @commands.check(is_trusted)
-    @commands.check(is_voice_only)
     async def lyrics_ambiguous(self, ctx: Context, *, query: str = None) -> None:
         """
         :param ctx:
@@ -885,7 +884,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="lyrics", aliases=["l"])
     @commands.check(is_trusted)
-    @commands.check(is_voice_only)
     async def lyrics(self, ctx: Context, *, query: str = None) -> None:
         """
         Fetch lyrics for a given index or search query and generate a formatted embed.
