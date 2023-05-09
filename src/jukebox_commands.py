@@ -1678,7 +1678,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
     emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
     description_played: str = strings.get("jukebox_played").format(
         previous_track.title,
-        format_duration(sec=previous_track.audio.duration())) \
+        format_duration(sec=previous_track.duration)) \
         if previous_track else None
     thumbnail_url: str = None
     image_url: str = None
