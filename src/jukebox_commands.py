@@ -387,7 +387,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                         ambiguous=True)
 
                     if not any(entries):
-                        msg = strings.get("error_track").format(query)
+                        msg = strings.get("error_track")
                     else:
                         title: str = strings.get("jukebox_found_title").format(ctx.author.display_name)
                         embed = discord.Embed(
@@ -470,7 +470,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
                     # Parse results into an embed, add as many tracks as possible
                     if not source:
-                        msg = strings.get("error_track").format(query)
+                        msg = strings.get("error_track")
                     elif not any(entries):
                         msg = strings.get("error_track" if num_failed < 2 else "error_track_all")
                     else:
