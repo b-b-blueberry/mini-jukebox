@@ -181,7 +181,7 @@ class MusicBot(Bot):
                 reaction = strings.emoji_question
             elif isinstance(error, commands.errors.BadArgument):
                 # Suppress failed command parameters
-                reaction = strings.emoji_exclamation
+                reaction = strings.emoji_error
             else:
                 # Notify and log other errors
                 reaction = strings.emoji_error
