@@ -440,6 +440,29 @@ class Jukebox:
         random.shuffle(queue)
         return len(queue)
 
+    def bump(self, item: JukeboxItem) -> bool:
+        """
+        Re-inserts a given track at the head of the queue if the queue has more than 1 not-currently-playing track.
+        :returns: Whether the track was moved.
+        """
+        # We don't worry about the multi-queue here:
+        # A user queue would only be popped if it were empty, and bumping a queue with 1 track does nothing.
+        # Bumping a queue with 2 tracks would continue into the 2nd after stopping the current, avoiding the pop.
+        # QED simple swap!
+        if not item:
+            return False
+        current: JukeboxItem = self.current_track()
+        queue: List[JukeboxItem] = self.get_queue(user_id=item.added_by.id)
+        is_current_in_queue: bool = current and current in queue
+        if len(queue) <= 1:
+            # Ignore if the track will not be moved when re-inserted
+            return False
+        if queue[0] is not item:
+            # Pop the selected track and replace it at the head of the queue if it's not the queue head
+            queue.remove(item)
+            queue.insert(0 if not is_current_in_queue else 1, item)
+        return True
+
     def loop(self) -> bool:
         """
         Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.

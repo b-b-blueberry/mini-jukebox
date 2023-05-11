@@ -669,9 +669,52 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     strings.emoji_shuffle)
             await ctx.reply(content=msg)
 
-    @commands.command(name="wipe", aliases=["w"])
+    @commands.command(name="bump", aliases=["b"])
     @commands.check(is_default)
     @commands.check(is_voice_only)
+    async def bump(self, ctx: Context, index: int = -1) -> None:
+        """
+        Bumps a track up to the head of the queue.
+        """
+        msg: Optional[str] = None
+        async with ctx.typing():
+            is_implicit: bool = index != -1
+            queue: List[JukeboxItem] = jukebox.get_queue(user_id=ctx.author.id)
+            index = index if index > 0 else len(queue) if queue else 0  # Use track at end of queue if index not given
+            current: JukeboxItem = jukebox.current_track()  # Current track is ignored for bumping
+            track: JukeboxItem = jukebox.get_item_by_index(index=index - 1)  # Reduce given index for 0-indexing
+            is_valid_user = track.added_by.id != ctx.author.id \
+                or (await is_admin(ctx=ctx, send_message=False) and not is_implicit)
+            if jukebox.is_empty():
+                # Ignore if no tracks are in the queue
+                msg = get_empty_queue_msg()
+            elif not track:
+                # Ignore if no track was at the given index
+                msg = strings.get("error_bump_not_found")
+            elif not is_valid_user:
+                # Ignore tracks added by other users, and prevent admins from bumping others implicitly
+                msg = strings.get("error_bump_user").format(
+                    track.title,
+                    track.added_by.mention,
+                    index)
+            elif (current and track and current is track) \
+                    or (current and queue and len(queue) > 1 and current in queue and queue[1] is track) \
+                    or (queue and any(queue) and queue[0] is track):
+                # Ignore attempts to bump the currently-playing track or tracks at the head of the queue
+                msg = strings.get("error_bump_current_at_end" if is_implicit else "error_bump_current")
+            else:
+                # Bump the track
+                jukebox.bump(item=track)
+                msg = strings.get("jukebox_bump").format(
+                    strings.emoji_bump,
+                    track.title,
+                    format_duration(sec=track.duration, is_playlist=False),
+                    jukebox.get_index_of_item(item=track) + 1)  # Increase result index for 1-indexing
+        if msg:
+            await ctx.reply(content=msg)
+
+    @commands.command(name="wipe", aliases=["w"])
+    @commands.check(is_default)
     async def wipe(self, ctx: Context, *, query: str = None) -> None:
         """
         Removes all tracks added by a given user from the queue.
