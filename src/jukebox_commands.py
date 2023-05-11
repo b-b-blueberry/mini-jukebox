@@ -1659,7 +1659,7 @@ async def get_guild_message(guild: discord.Guild, message_id: int) -> discord.Me
 
 def get_embed_colour(guild: discord.Guild) -> discord.Colour:
     # return guild.get_role(config.ROLE_JUKEBOX).colour
-    return guild.get_member(Commands.bot.user.id).colour
+    return guild.get_role(config.ROLE_JUKEBOX).colour
 
 def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None, previous_track: JukeboxItem = None) -> discord.Embed:
     """
