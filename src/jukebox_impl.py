@@ -427,17 +427,22 @@ class Jukebox:
 
     def shuffle(self, user_id: int) -> int:
         """
-        Shuffles the queue in-place, stopping the currently-playing track and restarting with the new current track.
+        Shuffles the queue, ignoring the currently-playing track.
         """
-        if config.PLAYLIST_MULTIQUEUE:
-            current: JukeboxItem = self.current_track()
-            if current and current.added_by == user_id:
-                # Stop (but don't remove) the currently-playing track when shuffling a user's currently-playing queue
-                self.stop()
-
-        # Shuffle the queue in-place
         queue: List[JukeboxItem] = self.get_queue(user_id=user_id)
-        random.shuffle(queue)
+        if not queue:
+            return -1
+        current: JukeboxItem = self.current_track()
+        is_current: bool = current and queue and current in queue
+
+        # Shuffle and re-append a clone of the queue, ignoring the currently-playing track if from this queue
+        queue_shuffled: List[JukeboxItem] = queue[1:] if is_current else queue[0:]
+        random.shuffle(queue_shuffled)
+        queue.clear()
+        if is_current:
+            queue.append(current)
+        [queue.append(item) for item in queue_shuffled]
+
         return len(queue)
 
     def bump(self, item: JukeboxItem) -> bool:
