@@ -1675,7 +1675,7 @@ def query_channel(guild: discord.Guild, query: str) -> Optional[discord.abc.Guil
     :param query: Discord channel ID or mention.
     :return: Channel instance, if found.
     """
-    return guild.get_channel(mention_to_id(query))
+    return guild.get_channel_or_thread(mention_to_id(query))
 
 async def get_guild_message(guild: discord.Guild, message_id: int) -> discord.Message:
     """
