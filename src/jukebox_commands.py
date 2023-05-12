@@ -683,7 +683,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             index = index if index > 0 else len(queue) if queue else 0  # Use track at end of queue if index not given
             current: JukeboxItem = jukebox.current_track()  # Current track is ignored for bumping
             track: JukeboxItem = jukebox.get_item_by_index(index=index - 1)  # Reduce given index for 0-indexing
-            is_valid_user = track.added_by.id != ctx.author.id \
+            is_valid_user = track.added_by.id == ctx.author.id \
                 or (await is_admin(ctx=ctx, send_message=False) and not is_implicit)
             if jukebox.is_empty():
                 # Ignore if no tracks are in the queue
