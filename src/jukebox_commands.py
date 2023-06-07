@@ -243,10 +243,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             track: JukeboxItem = jukebox_impl.YTDLSource.entry_to_track(entry=entry, source=entry.get("url"), added_by=interaction.user)
             starting_from_empty: bool = jukebox.is_empty()
 
-            # Join voice channel and start playing
+            # Add selected track to queue
             jukebox.append(track)
-            await ensure_voice()
-            if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
+
+            # Join voice channel and start playing
+            if not (jukebox.voice_client and jukebox.voice_client.is_playing()) and jukebox.is_in_voice_channel(interaction.user):
+                await ensure_voice()
                 jukebox.play()
 
             # Generate embed with track info
@@ -442,8 +444,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                                 Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
                         else:
                             # Playing a populated queue will continue from the current track
-                            await ensure_voice()
-                            if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
+                            if not (jukebox.voice_client and jukebox.voice_client.is_playing()) and jukebox.is_in_voice_channel(ctx.author):
+                                await ensure_voice()
                                 jukebox.play()
 
                             current = jukebox.current_track()
