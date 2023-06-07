@@ -1833,39 +1833,35 @@ def get_lyrics_embed(guild: discord.Guild, song: Song) -> discord.Embed:
 
     return embed
 
+def is_voice_bad(guild: discord.Guild) -> bool:
+    return not guild.voice_client \
+            or not isinstance(jukebox.voice_client, discord.VoiceClient) \
+            or not jukebox.voice_client.is_connected() \
+            or not jukebox.voice_client.channel \
+            or not jukebox.voice_client.channel.id == config.CHANNEL_VOICE
+
 async def ensure_voice() -> None:
     """
     Attempts to join the configured voice channel.
     """
     voice_channel: discord.VoiceChannel = jukebox.bot.get_channel(config.CHANNEL_VOICE)
-    if not jukebox.voice_client \
-            or not isinstance(jukebox.voice_client, discord.VoiceClient) \
-            or not jukebox.voice_client.is_connected() \
-            or not jukebox.voice_client.channel \
-            or not jukebox.voice_client.channel.id == voice_channel.id:
-        # Ensure that the bot has a voice connection
-        try:
-            if jukebox.voice_client:
-                await jukebox.voice_client.disconnect(force=True)
-        finally:
-            try:
-                jukebox.voice_client = await voice_channel.connect(
-                    timeout=config.VOICE_TIMEOUT,
-                    reconnect=config.VOICE_RECONNECT)
-            except ClientException as e:
-                # Ignore exceptions raised by concurrent voice connection attempts
-                if str(e) == 'Already connected to a voice channel.':
-                    return
-    if not jukebox.voice_client:
+    if is_voice_bad(guild=voice_channel.guild):
+        await voice_channel.guild.change_voice_state(channel=None)
+    try:
+        jukebox.voice_client = await voice_channel.connect(
+            timeout=config.VOICE_TIMEOUT,
+            reconnect=config.VOICE_RECONNECT)
+    except ClientException as e:
+        if str(e) == 'Already connected to a voice channel.':
+            return
+    if is_voice_bad(guild=voice_channel.guild):
         raise Exception(strings.get("error_voice_not_found"))
-
 
 def bytes_to_mib(b: int) -> float:
     """
     Conversion of bytes to mebibytes.
     """
     return b / 1048576
-
 
 def format_duration(sec: int, is_playlist: bool = False) -> str:
     """
