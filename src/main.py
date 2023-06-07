@@ -219,9 +219,9 @@ class MusicBot(Bot):
         Update bot state based on listeners in voice channel.
         """
         # Stop playing music and leave the voice channel if all other users have disconnected
-        if jukebox.voice_client and before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
+        if member.guild.voice_client and before.channel and before.channel.id == config.CHANNEL_VOICE and len(before.channel.members) < 2:
             jukebox.stop()
-            await jukebox.voice_client.disconnect()
+            await member.guild.voice_client.disconnect(force=True)
 
     def reload_strings(self) -> None:
         """
