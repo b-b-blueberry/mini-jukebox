@@ -1014,9 +1014,26 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     # Admin commands
 
-    @commands.command(name="leave", aliases=[])
+    @commands.command(name="connect", aliases=["join"], hidden=True)
     @commands.check(is_admin)
-    async def leave_voice(self, ctx: Context) -> None:
+    async def connect_voice(self, ctx: Context) -> None:
+        """
+        Forces the VoiceClient to connect or disconnect.
+        """
+        print("Joining voice. [{0}#{1} ({2})]".format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        await ensure_voice()
+        is_bad: bool = is_voice_bad(guild=ctx.guild)
+        await ctx.message.add_reaction(strings.emoji_error if is_bad else strings.emoji_confirm)
+
+        # Update rich presence
+        await self._update_presence()
+
+    @commands.command(name="disconnect", aliases=["leave"])
+    @commands.check(is_admin)
+    async def disconnect_voice(self, ctx: Context) -> None:
         """
         Removes the bot from the voice channel and stops the currently-playing track.
         """
@@ -1026,9 +1043,9 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             ctx.author.id,
             jukebox.num_listeners()))
         jukebox.stop()
-        if jukebox.voice_client:
-            await jukebox.voice_client.disconnect()
-        await ctx.message.add_reaction(strings.emoji_confirm)
+        await ctx.guild.change_voice_state(channel=None)
+        is_connected: bool = ctx.guild.voice_client is not None or jukebox.voice_client is not None
+        await ctx.message.add_reaction(strings.emoji_error if is_connected else strings.emoji_confirm)
 
         # Update rich presence
         await self._update_presence()
@@ -1239,6 +1256,23 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         for emoji_id in ["emoji_id_nukebox", "emoji_id_pam", "emoji_id_mango"]:
             emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get(emoji_id))
             await message.add_reaction(emoji)
+
+    @commands.command(name="state", hidden=True)
+    @commands.check(is_admin)
+    async def send_voice_state(self, ctx: Context) -> None:
+        """
+        Sends a short report on various components of the VoiceClient state.
+        """
+        is_bad: bool = is_voice_bad(guild=ctx.guild)
+        is_client: bool = isinstance(jukebox.voice_client, discord.VoiceClient)
+        msg: str = strings.get("info_voice_state").format(
+            not is_bad,
+            is_client,
+            is_client and jukebox.voice_client.is_connected(),
+            is_client and jukebox.voice_client.channel and jukebox.voice_client.channel.id == config.CHANNEL_VOICE,
+            ctx.guild.voice_client is not None
+        )
+        await ctx.reply(content=msg)
 
     @commands.command(name="uptime", aliases=["runtime"], hidden=True)
     @commands.check(is_admin)
