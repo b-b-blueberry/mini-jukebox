@@ -33,12 +33,16 @@ class DBUser:
             user_id: int,
             tracks_added: int,
             tracks_listened: int,
-            duration_listened: int
+            duration_listened: int,
+            recent_month: int,
+            monthly_listened: int,
     ):
         self.user_id = user_id
         self.tracks_added = tracks_added
         self.tracks_listened = tracks_listened
         self.duration_listened = duration_listened
+        self.recent_month = recent_month
+        self.montly_listened = monthly_listened
 
 
 # Constant values
@@ -49,6 +53,8 @@ KEY_USER_ID: str = "ID"
 KEY_TRACKS_ADDED: str = "TRACKS_ADDED"
 KEY_TRACKS_LISTENED: str = "TRACKS_LISTENED"
 KEY_DURATION_LISTENED: str = "DURATION_LISTENED"
+KEY_RECENT_MONTH: str = "RECENT_MONTH"
+KEY_MONTH_LISTENED: str = "MONTHLY_LISTENED"
 
 TABLE_GUILDS: str = "GUILDS"
 KEY_GUILD_ID: str = "ID"
@@ -73,13 +79,15 @@ def setup():
         ))
     # Users table
     db.execute(
-        "CREATE TABLE IF NOT EXISTS {0} ({1} INT PRIMARY KEY, {2} INT, {3} INT, {4} INT)"
+        "CREATE TABLE IF NOT EXISTS {0} ({1} INT PRIMARY KEY, {2} INT, {3} INT, {4} INT, {5} INT, {6} INT)"
         .format(
             TABLE_USERS,
             KEY_USER_ID,
             KEY_TRACKS_ADDED,
             KEY_TRACKS_LISTENED,
-            KEY_DURATION_LISTENED
+            KEY_DURATION_LISTENED,
+            KEY_RECENT_MONTH,
+            KEY_MONTH_LISTENED
         ))
     db.commit()
     db.close()
@@ -151,7 +159,9 @@ def _entry_to_user(entry: list) -> DBUser:
         user_id=entry[0],
         tracks_added=entry[1],
         tracks_listened=entry[2],
-        duration_listened=entry[3]
+        duration_listened=entry[3],
+        recent_month=entry[4],
+        monthly_listened=entry[5],
     )
 
 def get_user(user_id: int) -> DBUser:
@@ -174,18 +184,22 @@ def update_user(entry: DBUser) -> None:
     Updates a user's database entry. Negative values will be ignored.
     """
     query: tuple = (
-        "REPLACE INTO {0} ({1}, {2}, {3}, {4}) VALUES (?, ?, ?, ?)"
+        "REPLACE INTO {0} ({1}, {2}, {3}, {4}, {5}, {6}) VALUES (?, ?, ?, ?, ?, ?)"
         .format(
             TABLE_USERS,
             KEY_USER_ID,
             KEY_TRACKS_ADDED,
             KEY_TRACKS_LISTENED,
             KEY_DURATION_LISTENED,
+            KEY_RECENT_MONTH,
+            KEY_MONTH_LISTENED,
         ), [
             entry.user_id,
             entry.tracks_added,
             entry.tracks_listened,
-            entry.duration_listened
+            entry.duration_listened,
+            entry.recent_month,
+            entry.montly_listened,
         ])
     _db_write(query)
 

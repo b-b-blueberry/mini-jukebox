@@ -63,6 +63,7 @@
   "jukebox_user_info_added": "Queued up: **{0}** tracks",
   "jukebox_user_info_listened": "Listened to: **{0}** tracks",
   "jukebox_user_info_duration": "Party time: **{0}**",
+  "jukebox_user_info_monthly": "This month: **{0}** ",
   "jukebox_user_info_roles": "DJ level",
   "jukebox_user_empty": "No jukebox history!",
   "jukebox_leaderboard_title": "Top of the pops",

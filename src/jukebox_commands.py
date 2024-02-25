@@ -36,7 +36,7 @@ import pkg_resources
 import random
 import re
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from importlib import reload
 from importlib import metadata
 from math import ceil, floor
@@ -1370,12 +1370,17 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Clear votes
         await Vote.clear_votes()
 
+        curr_month = format_month()
         # Update db
         for user_id in Commands.listening_users.keys():
             joined_at_duration: int = Commands.listening_users[user_id]
             entry: DBUser = Commands.bot.db.get_user(user_id=user_id)
             entry.tracks_listened += 1
             entry.duration_listened += track.duration - joined_at_duration
+            if curr_month != entry.recent_month:
+                entry.recent_month = curr_month
+                entry.montly_listened = 0
+            entry.montly_listened += track.duration - joined_at_duration
             Commands.bot.db.update_user(entry=entry)
 
         # Post now-playing update
@@ -1517,6 +1522,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             # Fetch user's jukebox stats
             entry: DBUser = Commands.bot.db.get_user(user_id=member.id)
             duration_formatted: str = format_user_playtime(sec=entry.duration_listened)
+            monthly_formatted: str = format_user_playtime(sec=entry.montly_listened)
+            curr_month: int = format_month()
 
             # Set description to user's jukebox stats
             is_new: bool = False
@@ -1526,6 +1533,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             if entry.tracks_listened > 0 or entry.duration_listened > 0:
                 info.append(strings.get("jukebox_user_info_listened").format(entry.tracks_listened))
                 info.append(strings.get("jukebox_user_info_duration").format(duration_formatted))
+            if entry.recent_month == curr_month and entry.montly_listened > 0:
+                info.append(strings.get("jukebox_user_info_monthly").format(monthly_formatted))
             info_str: str = "\n".join(info)
 
             visible_roles: Dict[int, str] = {
@@ -1875,6 +1884,15 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
         .strftime(strings.get("datetime_format_playlist")
                   if is_playlist
                   else strings.get("datetime_format_track"))
+
+def format_month() -> int:
+    """
+    Converts a Year/Month pair into a single unique value to store in the database
+    """
+    today = date.today()
+    year = today.year
+    month = today.month - 1
+    return year * 12 + month
 
 def format_user_playtime(sec: int) -> str:
     """
