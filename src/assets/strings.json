@@ -118,7 +118,6 @@
   "info_package_major_entry": "Version {0}\n{1}\n{2}",
   "info_package_minor_entry": "{0}⋅{1}",
   "info_package_update": "\n{0} Update available: **{1}** ({2})",
-  "info_voice_state": "```Result: {0}\n\nInstantiated: {1}\nConnected: {2}\nChannel: {3}\nGuild: {4}```",
   "info_reason": "Requested by {0}#{1} ({2})",
   "info_unknown": "???",
 
