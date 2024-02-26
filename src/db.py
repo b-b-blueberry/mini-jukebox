@@ -177,7 +177,7 @@ def get_user(user_id: int) -> DBUser:
             user_id
         ])
     entry: list = _db_read(query)
-    return _entry_to_user(entry[0] if entry and entry[0] else [user_id, 0, 0, 0])
+    return _entry_to_user(entry[0] if entry and entry[0] else [user_id, 0, 0, 0, 0, 0])
 
 def update_user(entry: DBUser) -> None:
     """
