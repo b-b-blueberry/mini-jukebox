@@ -1,7 +1,7 @@
-version: '3'
 services:
     jukebox:
         image: jukebox:latest
+        container_name: jukebox
         restart: unless-stopped
         volumes:
             - ./src:/jukebox
