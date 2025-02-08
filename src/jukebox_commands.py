@@ -600,7 +600,6 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
 
     @commands.command(name="delete", aliases=["d"])
     @commands.check(is_default)
-    @commands.check(is_voice_only)
     async def delete(self, ctx: Context, index: int = 1) -> None:
         """
         Removes a track from the queue.
