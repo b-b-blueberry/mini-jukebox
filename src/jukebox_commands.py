@@ -618,10 +618,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 msg = get_empty_queue_msg()
             elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
                     or Vote.required_votes() <= 1:
+                # For track-owner and admin calls, wipe the queue immediately
                 await self._do_delete(
                     ctx=ctx,
                     extra_data=index)
             elif await is_trusted(ctx=ctx, send_message=False):
+                # Start a vote to wipe the target track
                 vote_msg: str = strings.get("info_vote_delete").format(
                     track.title,
                     ctx.message.author.mention,
@@ -1668,6 +1670,7 @@ def parse_query(query: any) -> any:
 
     return query
 
+
 def mention_to_id(mention: [str, int]) -> int:
     """
     Strips mention formatting from a Discord ID.
@@ -1684,6 +1687,7 @@ def query_channel(guild: discord.Guild, query: str) -> Optional[discord.abc.Guil
     :return: Channel instance, if found.
     """
     return guild.get_channel_or_thread(mention_to_id(query))
+
 
 async def get_guild_message(guild: discord.Guild, message_id: int) -> discord.Message:
     """
@@ -1708,9 +1712,11 @@ async def get_guild_message(guild: discord.Guild, message_id: int) -> discord.Me
             if e.code == 10008:
                 pass
 
+
 def get_embed_colour(guild: discord.Guild) -> discord.Colour:
     # return guild.get_role(config.ROLE_JUKEBOX).colour
     return guild.get_role(config.ROLE_JUKEBOX).colour
+
 
 def get_current_track_embed(guild: discord.Guild, show_tracking: bool, description: Optional[str] = None, previous_track: JukeboxItem = None) -> discord.Embed:
     """
@@ -1780,6 +1786,7 @@ def get_current_track_embed(guild: discord.Guild, show_tracking: bool, descripti
             embed.set_image(url=image_url)
     return embed
 
+
 def get_empty_queue_embed(guild: discord.Guild, description: Optional[str] = None) -> discord.Embed:
     """
     Generates an embed preview for an empty queue.
@@ -1794,6 +1801,7 @@ def get_empty_queue_embed(guild: discord.Guild, description: Optional[str] = Non
     embed.set_thumbnail(url=emoji.url)
     return embed
 
+
 def get_empty_queue_msg():
     """
     Generates a preview message for an empty queue.
@@ -1801,6 +1809,7 @@ def get_empty_queue_msg():
     emoji: discord.Emoji = utils.get(jukebox.bot.emojis, name=strings.get("emoji_id_vinyl"))
     msg = strings.get("jukebox_empty").format(emoji)
     return msg
+
 
 def get_lyrics_embed(guild: discord.Guild, song: Song) -> discord.Embed:
     heading: str = song.artist
@@ -1905,6 +1914,7 @@ def format_user_playtime(sec: int) -> str:
         int(mins % 60),
         int(mins / 60)
     )
+
 
 def get_genius() -> Genius:
     genius: Genius = Genius(config.TOKEN_LYRICS)
