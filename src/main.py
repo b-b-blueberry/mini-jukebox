@@ -23,7 +23,7 @@ import asyncio
 import logging
 import os
 import shutil
-from datetime import datetime
+import datetime
 from logging.handlers import RotatingFileHandler
 from importlib import reload
 from typing import Optional
@@ -122,7 +122,7 @@ class MusicBot(Bot):
             allowed_mentions=discord.AllowedMentions.none())
         self.help_command = self.MusicHelpCommand()
         self.db = db
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.datetime.now(datetime.UTC)
 
     # Bot events
 
