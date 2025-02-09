@@ -197,7 +197,7 @@ class MusicBot(Bot):
                         ctx.message.jump_url,
                         strings.emoji_error)
                     log_channel: discord.TextChannel = ctx.guild.get_channel(config.CHANNEL_LOG)
-                    error_file: discord.File = err.traceback_as_file(error.original)
+                    error_file: discord.File = err.traceback_as_file(error)
 
                     # Send error with stack trace as message attachment
                     await log_channel.send(content=error_msg, file=error_file)
