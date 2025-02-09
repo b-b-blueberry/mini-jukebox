@@ -80,6 +80,8 @@ DISCORD_INTENTS: discord.Intents = discord.Intents(
 COMMAND_PREFIX: str = cfg["discord"]["command_prefix"]
 """Prefix required for all messages sent in command channel."""
 
+ROLE_MAINTENANCE: int = cfg["discord"]["roles"]["maintenance"]
+"""Discord role ID for commands and features requiring admin privileges."""
 ROLE_ADMIN: int = cfg["discord"]["roles"]["admin"]
 """Discord role ID for commands and features requiring admin privileges."""
 ROLE_TRUSTED: int = cfg["discord"]["roles"]["trusted"]

@@ -1549,6 +1549,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             info_str: str = "\n".join(info)
 
             visible_roles: Dict[int, str] = {
+                config.ROLE_MAINTENANCE: "emoji_id_junimo",
                 config.ROLE_ADMIN: "emoji_id_junimo",
                 config.ROLE_JUKEBOX: "emoji_id_jukebox",
                 config.ROLE_TRUSTED: "emoji_id_gold",
