@@ -52,7 +52,7 @@ async def is_admin(ctx: Context, send_message: bool = True) -> bool:
 
 
 async def is_trusted(ctx: Context, send_message: bool = True) -> bool:
-    facts = _check_roles(ctx.author, [config.ROLE_TRUSTED, config.ROLE_JUKEBOX, config.ROLE_ADMIN])
+    facts = _check_roles(ctx.author, [config.ROLE_TRUSTED, config.ROLE_JUKEBOX]) or is_admin(ctx, send_message=False)
     if not facts and send_message:
         msg = strings.get("error_command_role_permissions")
         await ctx.reply(content=msg)
@@ -60,7 +60,7 @@ async def is_trusted(ctx: Context, send_message: bool = True) -> bool:
 
 
 async def is_default(ctx: Context, send_message: bool = True) -> bool:
-    facts = _check_roles(ctx.author, [config.ROLE_DEFAULT, config.ROLE_TRUSTED, config.ROLE_JUKEBOX, config.ROLE_ADMIN])
+    facts = _check_roles(ctx.author, [config.ROLE_DEFAULT]) or is_trusted(ctx, send_message=False)
     if not facts and send_message:
         msg = strings.get("error_command_role_permissions")
         await ctx.reply(content=msg)
@@ -69,7 +69,7 @@ async def is_default(ctx: Context, send_message: bool = True) -> bool:
 
 async def is_voice_only(ctx: Context, send_message: bool = True) -> bool:
     # Filter voice-only command uses by users currently in the voice channel
-    facts = jukebox.is_in_voice_channel(member=ctx.author) or _check_roles(ctx.author, [config.ROLE_ADMIN])
+    facts = jukebox.is_in_voice_channel(member=ctx.author) or is_admin(ctx, send_message=False)
     if not facts and send_message:
         # Users can only play the jukebox if they're in the voice channel
         msg = strings.get("error_command_voice_only").format(
