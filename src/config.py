@@ -13,6 +13,7 @@ Contents:
     FFMPEG
     Jukebox
     Lyrics
+    DB
     YTDL
 """
 

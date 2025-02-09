@@ -35,7 +35,6 @@ import err
 import strings
 import config
 
-
 class TrackingAudio(FFmpegPCMAudio):
     """
     An override of the FFmpegPCMAudio class with tracking information.
