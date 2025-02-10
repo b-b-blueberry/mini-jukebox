@@ -49,7 +49,7 @@ from discord import utils, Interaction, ClientException
 from discord.ext import commands
 from discord.ext.commands import Context
 from lyricsgenius import Genius
-from lyricsgenius.song import Song
+from lyricsgenius.types import Song
 
 import config
 import jukebox_checks
