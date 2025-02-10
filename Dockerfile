@@ -1,4 +1,4 @@
-FROM python:3.12-alpine
+FROM ghcr.io/astral-sh/uv:python3.12-alpine
 
 RUN apk add \
     build-base \
@@ -7,7 +7,10 @@ RUN apk add \
     opus-dev \
     sqlite
 
-ADD requirements.txt /jukebox/requirements.txt
-RUN pip3 install -r /jukebox/requirements.txt
+ADD src /jukebox
+ADD uv.lock /jukebox
+ADD pyproject.toml /jukebox
 
-CMD ["python3", "-u", "/jukebox/main.py"]
+WORKDIR /jukebox
+RUN uv sync --frozen
+CMD ["uv", "run", "main.py"]
