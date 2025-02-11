@@ -4,4 +4,4 @@ services:
         container_name: jukebox
         restart: unless-stopped
         volumes:
-            - ./private:/private
+            - ./private:/jukebox/private
