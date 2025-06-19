@@ -98,16 +98,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         # Process and download track metadata where available
         entries: List[dict] = []
+        entry: Optional[dict] = None
         title: Optional[str] = None
         source: Optional[str] = None
         num_failed: int = 0
 
-        ytdlconn.params["max_downloads"] = None if not ambiguous else config.YTDL_AMBIGUOUS_RESULTS
-        response: Optional[dict] = await loop.run_in_executor(
-            executor=None,
-            func=lambda: ytdlconn.extract_info(
-                url=query if not ambiguous else f"ytsearch{config.YTDL_AMBIGUOUS_ATTEMPTS}:{query}",
-                download=not ambiguous and not config.PLAYLIST_STREAMING))
+        url: str = query if not ambiguous else f"ytsearch{config.YTDL_AMBIGUOUS_ATTEMPTS}:{query}"
+        download: bool = not ambiguous and not config.PLAYLIST_STREAMING
+        max_downloads: int = None if not ambiguous else config.YTDL_AMBIGUOUS_RESULTS
+
+        ytdlconn.params["max_downloads"] = max_downloads
+        response: Optional[dict] = await loop.run_in_executor(executor=None, func=lambda: ytdlconn.extract_info(url=url, download=download))
 
         if response:
             # Fetch all playlist items as an iterable if they exist, else wrap single item as an iterable
@@ -116,12 +117,13 @@ class YTDLSource(discord.PCMVolumeTransformer):
             # Fetch relevant fields from response and trim out failed downloads from the playlist
             num_listed: int = len(entries)
             entries = [entry for entry in entries if entry]
+            entry = entries[0]
 
             if ambiguous:
                 return entries
 
-            title = response.get("title") if "title" in response else None
-            source = response.get("url") if "url" in response else entries[0].get("url") if any(entries) else None
+            title = entry.get("title") if "title" in entry else None
+            source = entry.get("url") if "url" in entry else entry.get("url") if entry else None
             num_failed = num_listed - len(entries)
 
             log_msg: str = strings.get("log_console_media_response").format(source)
@@ -130,7 +132,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             if config.LOGGING_FILE:
                 logging.getLogger("discord").debug(log_msg)
 
-        return entries, title, source, num_failed
+        return entries, entry, title, source, num_failed
 
     @classmethod
     async def get_playlist_files(cls, playlist_info, is_streaming: bool, added_by: discord.member) -> List["JukeboxItem"]:

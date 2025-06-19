@@ -464,18 +464,18 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                     playlist_duration: int = 0
 
                     # Fetch metadata for tracks
-                    entries, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
+                    entries, entry, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
                         query=query,
                         loop=Commands.bot.loop)
 
                     # Parse results into an embed, add as many tracks as possible
                     if not source:
                         msg = strings.get("error_track")
-                    elif not any(entries):
+                    elif not entry:
                         msg = strings.get("error_track" if num_failed < 2 else "error_track_all")
                     else:
-                        extractor: str = entries[0].get("extractor").split(sep=":")[0] \
-                            if entries[0] and "extractor" in entries[0].keys() \
+                        extractor: str = entry.get("extractor").split(sep=":")[0] \
+                            if entry and "extractor" in entry.keys() \
                             else None
                         if not extractor:
                             # Check for invalid extractors
