@@ -1,8 +1,7 @@
 services:
     jukebox:
-        image: jukebox:latest
+        image: aquova/jukebox:latest
         container_name: jukebox
         restart: unless-stopped
         volumes:
-            - ./src:/jukebox
             - ./private:/private
