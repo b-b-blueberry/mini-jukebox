@@ -117,20 +117,22 @@ class YTDLSource(discord.PCMVolumeTransformer):
             # Fetch relevant fields from response and trim out failed downloads from the playlist
             num_listed: int = len(entries)
             entries = [entry for entry in entries if entry]
-            entry = entries[0]
+            num_failed = num_listed - len(entries)
 
             if ambiguous:
                 return entries
 
-            title = entry.get("title") if "title" in entry else None
-            source = entry.get("url") if "url" in entry else entry.get("url") if entry else None
-            num_failed = num_listed - len(entries)
+            if num_listed != num_failed:
+                entry = entries[0]
 
-            log_msg: str = strings.get("log_console_media_response").format(source)
-            if config.LOGGING_CONSOLE:
-                print(log_msg)
-            if config.LOGGING_FILE:
-                logging.getLogger("discord").debug(log_msg)
+                title = entry.get("title") if "title" in entry else None
+                source = entry.get("url") if "url" in entry else entry.get("url") if entry else None
+
+                log_msg: str = strings.get("log_console_media_response").format(source)
+                if config.LOGGING_CONSOLE:
+                    print(log_msg)
+                if config.LOGGING_FILE:
+                    logging.getLogger("discord").debug(log_msg)
 
         return entries, entry, title, source, num_failed
 
