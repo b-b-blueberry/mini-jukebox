@@ -373,35 +373,36 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         # Resolve query
         query = parse_query(query=query)
 
-        async with ctx.typing():
-            try:
-                if not jukebox.is_in_voice_channel(member=ctx.author):
-                    # Users can only play the jukebox if they're in the voice channel
-                    msg = strings.get("error_command_voice_only").format(
-                        Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
+        await ctx.typing()
+
+        try:
+            if not jukebox.is_in_voice_channel(member=ctx.author):
+                # Users can only play the jukebox if they're in the voice channel
+                msg = strings.get("error_command_voice_only").format(
+                    Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
+            else:
+                # Fetch metadata for tracks based on the given query
+                entries: List[dict] = await jukebox_impl.YTDLSource.get_playlist_info(
+                    query=query,
+                    loop=Commands.bot.loop,
+                    ambiguous=True)
+
+                if not any(entries):
+                    msg = strings.get("error_track")
                 else:
-                    # Fetch metadata for tracks based on the given query
-                    entries: List[dict] = await jukebox_impl.YTDLSource.get_playlist_info(
-                        query=query,
-                        loop=Commands.bot.loop,
-                        ambiguous=True)
+                    title: str = strings.get("jukebox_found_title").format(ctx.author.display_name)
+                    embed = discord.Embed(
+                        colour=get_embed_colour(ctx.guild))
+                    embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
+        except yt_dlp.DownloadError:
+            # Suppress and message download errors
+            msg = strings.get("error_download")
 
-                    if not any(entries):
-                        msg = strings.get("error_track")
-                    else:
-                        title: str = strings.get("jukebox_found_title").format(ctx.author.display_name)
-                        embed = discord.Embed(
-                            colour=get_embed_colour(ctx.guild))
-                        embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
-            except yt_dlp.DownloadError:
-                # Suppress and message download errors
-                msg = strings.get("error_download")
-
-            if embed:
-                view: Commands.AmbiguousTrackView = Commands.AmbiguousTrackView(entries=entries, added_by=ctx.author)
-                await ctx.reply(embed=embed, view=view)
-            elif msg:
-                await ctx.reply(content=msg)
+        if embed:
+            view: Commands.AmbiguousTrackView = Commands.AmbiguousTrackView(entries=entries, added_by=ctx.author)
+            await ctx.reply(embed=embed, view=view)
+        elif msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name="add", aliases=["a"])
     @commands.check(is_default)
@@ -428,123 +429,124 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             # Resolve query
             query = parse_query(query=query)
 
-        async with ctx.typing():
-            try:
-                if not query:
-                    # Without a search query, try to resume the last-playing track if paused
-                    if jukebox.is_empty():
-                        # Resuming an empty queue does nothing
-                        embed = get_empty_queue_embed(guild=ctx.guild)
-                    else:
-                        if not jukebox.is_in_voice_channel(member=ctx.author):
-                            # Users can only play the jukebox if they're in the voice channel
-                            msg = strings.get("error_command_voice_only").format(
-                                Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
-                        else:
-                            # Playing a populated queue will continue from the current track
-                            await ensure_voice()
-                            if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
-                                jukebox.play()
+        await ctx.typing()
 
-                            current = jukebox.current_track()
-                            description = strings.get("jukebox_current_added_by").format(
-                                current.added_by.mention,
-                                format_duration(sec=current.duration))
-                            embed = get_current_track_embed(
-                                guild=ctx.guild,
-                                show_tracking=current and current.audio and current.audio.progress() > 5,
-                                description=description)
+        try:
+            if not query:
+                # Without a search query, try to resume the last-playing track if paused
+                if jukebox.is_empty():
+                    # Resuming an empty queue does nothing
+                    embed = get_empty_queue_embed(guild=ctx.guild)
                 else:
-                    # Otherwise, try to play a track based on the given URL or search query
-                    entries: List[dict]
-                    title: str
-                    source: str
-                    num_failed: int
-                    playlist_items: List[JukeboxItem] = []
-                    playlist_duration: int = 0
-
-                    # Fetch metadata for tracks
-                    entries, entry, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
-                        query=query,
-                        loop=Commands.bot.loop)
-
-                    # Parse results into an embed, add as many tracks as possible
-                    if not source:
-                        msg = strings.get("error_track")
-                    elif not entry:
-                        msg = strings.get("error_track" if num_failed < 2 else "error_track_all")
+                    if not jukebox.is_in_voice_channel(member=ctx.author):
+                        # Users can only play the jukebox if they're in the voice channel
+                        msg = strings.get("error_command_voice_only").format(
+                            Commands.bot.get_channel(config.CHANNEL_VOICE).mention)
                     else:
-                        extractor: str = entry.get("extractor").split(sep=":")[0] \
-                            if entry and "extractor" in entry.keys() \
-                            else None
-                        if not extractor:
-                            # Check for invalid extractors
-                            msg = strings.get("error_extractor_not_found").format(query)
-                        elif extractor not in config.YTDL_ALLOWED_EXTRACTORS:
-                            # Check for untrusted extractors
-                            msg = strings.get("error_domain_not_whitelisted").format(extractor)
-                        else:
-                            # Check for excessively large track lists
-                            playlist_duration = sum([int(track.get("duration", 0)) for track in entries])
-
-                            # Prepare the playlist audio files
-                            playlist_items = await jukebox_impl.YTDLSource.get_playlist_files(
-                                playlist_info=entries,
-                                is_streaming=config.PLAYLIST_STREAMING,
-                                added_by=ctx.author)
-
-                    # If no messages (errors) were made, add tracks to the queue
-                    if not msg and any(playlist_items):
-                        for playlist_item in playlist_items:
-                            jukebox.append(item=playlist_item)
-
-                        playlist_head: JukeboxItem = playlist_items[0]
-
-                        # Join voice and start playing if not currently playing and command user is in voice
-                        if not (jukebox.voice_client and jukebox.voice_client.is_playing()) and jukebox.is_in_voice_channel(ctx.author):
-                            await ensure_voice()
+                        # Playing a populated queue will continue from the current track
+                        await ensure_voice()
+                        if not jukebox.voice_client.is_playing() and not jukebox.voice_client.is_paused():
                             jukebox.play()
 
-                            if len(playlist_items) == 1:
-                                # One track was added to an empty queue
-                                description = strings.get("jukebox_current_added_by").format(
-                                    playlist_head.added_by.mention,
-                                    format_duration(sec=playlist_head.duration))
-                            elif num_failed < 1:
-                                # Several tracks in a playlist were added to an empty queue
-                                description = strings.get("jukebox_current_added_playlist").format(
-                                    title,
-                                    format_duration(sec=playlist_duration, is_playlist=True),
-                                    len(playlist_items))
-                        elif len(playlist_items) == 1:
-                            # One track was added to a populated queue
-                            description = strings.get("jukebox_added_one").format(
-                                playlist_head.title,
-                                format_duration(sec=playlist_head.duration),
-                                jukebox.get_index_of_item(playlist_head) + 1)
-                        elif 0 < num_failed < len(entries):
-                            # One or more tracks in a playlist failed to download
+                        current = jukebox.current_track()
+                        description = strings.get("jukebox_current_added_by").format(
+                            current.added_by.mention,
+                            format_duration(sec=current.duration))
+                        embed = get_current_track_embed(
+                            guild=ctx.guild,
+                            show_tracking=current and current.audio and current.audio.progress() > 5,
+                            description=description)
+            else:
+                # Otherwise, try to play a track based on the given URL or search query
+                entries: List[dict]
+                title: str
+                source: str
+                num_failed: int
+                playlist_items: List[JukeboxItem] = []
+                playlist_duration: int = 0
+
+                # Fetch metadata for tracks
+                entries, entry, title, source, num_failed = await jukebox_impl.YTDLSource.get_playlist_info(
+                    query=query,
+                    loop=Commands.bot.loop)
+
+                # Parse results into an embed, add as many tracks as possible
+                if not source:
+                    msg = strings.get("error_track")
+                elif not entry:
+                    msg = strings.get("error_track" if num_failed < 2 else "error_track_all")
+                else:
+                    extractor: str = entry.get("extractor").split(sep=":")[0] \
+                        if entry and "extractor" in entry.keys() \
+                        else None
+                    if not extractor:
+                        # Check for invalid extractors
+                        msg = strings.get("error_extractor_not_found").format(query)
+                    elif extractor not in config.YTDL_ALLOWED_EXTRACTORS:
+                        # Check for untrusted extractors
+                        msg = strings.get("error_domain_not_whitelisted").format(extractor)
+                    else:
+                        # Check for excessively large track lists
+                        playlist_duration = sum([int(track.get("duration", 0)) for track in entries])
+
+                        # Prepare the playlist audio files
+                        playlist_items = await jukebox_impl.YTDLSource.get_playlist_files(
+                            playlist_info=entries,
+                            is_streaming=config.PLAYLIST_STREAMING,
+                            added_by=ctx.author)
+
+                # If no messages (errors) were made, add tracks to the queue
+                if not msg and any(playlist_items):
+                    for playlist_item in playlist_items:
+                        jukebox.append(item=playlist_item)
+
+                    playlist_head: JukeboxItem = playlist_items[0]
+
+                    # Join voice and start playing if not currently playing and command user is in voice
+                    if not (jukebox.voice_client and jukebox.voice_client.is_playing()) and jukebox.is_in_voice_channel(ctx.author):
+                        await ensure_voice()
+                        jukebox.play()
+
+                        if len(playlist_items) == 1:
+                            # One track was added to an empty queue
+                            description = strings.get("jukebox_current_added_by").format(
+                                playlist_head.added_by.mention,
+                                format_duration(sec=playlist_head.duration))
+                        elif num_failed < 1:
+                            # Several tracks in a playlist were added to an empty queue
                             description = strings.get("jukebox_current_added_playlist").format(
                                 title,
                                 format_duration(sec=playlist_duration, is_playlist=True),
-                                len(playlist_items)) + "\n" + strings.get("error_track_some").format(num_failed)
-                        else:
-                            # Several tracks in a playlist were added to a populated queue
-                            description = strings.get("jukebox_added_many").format(
-                                title,
-                                format_duration(sec=playlist_duration, is_playlist=True),
-                                jukebox.get_index_of_item(playlist_head) + 1,
                                 len(playlist_items))
-            except yt_dlp.DownloadError:
-                # Suppress and message download errors
-                msg = strings.get("error_download")
-            if description and not embed:
-                embed = get_current_track_embed(
-                    guild=ctx.guild,
-                    show_tracking=False,
-                    description=description)
-            if msg or embed:
-                await ctx.reply(content=msg, embed=embed)
+                    elif len(playlist_items) == 1:
+                        # One track was added to a populated queue
+                        description = strings.get("jukebox_added_one").format(
+                            playlist_head.title,
+                            format_duration(sec=playlist_head.duration),
+                            jukebox.get_index_of_item(playlist_head) + 1)
+                    elif 0 < num_failed < len(entries):
+                        # One or more tracks in a playlist failed to download
+                        description = strings.get("jukebox_current_added_playlist").format(
+                            title,
+                            format_duration(sec=playlist_duration, is_playlist=True),
+                            len(playlist_items)) + "\n" + strings.get("error_track_some").format(num_failed)
+                    else:
+                        # Several tracks in a playlist were added to a populated queue
+                        description = strings.get("jukebox_added_many").format(
+                            title,
+                            format_duration(sec=playlist_duration, is_playlist=True),
+                            jukebox.get_index_of_item(playlist_head) + 1,
+                            len(playlist_items))
+        except yt_dlp.DownloadError:
+            # Suppress and message download errors
+            msg = strings.get("error_download")
+        if description and not embed:
+            embed = get_current_track_embed(
+                guild=ctx.guild,
+                show_tracking=False,
+                description=description)
+        if msg or embed:
+            await ctx.reply(content=msg, embed=embed)
 
         # Update rich presence
         await self._update_presence()
@@ -568,35 +570,37 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         :param skip_count: Number of tracks to remove.
         """
         msg: Optional[str] = None
-        async with ctx.typing():
-            if jukebox.is_empty():
-                msg = get_empty_queue_msg()
+
+        await ctx.typing()
+
+        if jukebox.is_empty():
+            msg = get_empty_queue_msg()
+        else:
+            tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
+            if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False) \
+                    or Vote.required_votes() <= 1:
+                await self._do_skip(
+                    ctx=ctx,
+                    extra_data=tracks)
+            elif await is_trusted(ctx=ctx, send_message=False):
+                vote_msg: str = strings.get("info_vote_skip").format(
+                    skip_count,
+                    ctx.message.author.mention)
+                vote: Vote = Vote(
+                    vote_type=Vote.VOTE_SKIP,
+                    allow_no=False,
+                    extra_data=tracks,
+                    end_func=self._do_skip)
+                await Vote.start_vote(
+                    ctx=ctx,
+                    vote=vote,
+                    start_msg=vote_msg)
             else:
-                tracks: List[JukeboxItem] = jukebox.get_range(index_start=0, index_end=skip_count)
-                if all(track.added_by is ctx.message.author for track in tracks) or await is_admin(ctx=ctx, send_message=False) \
-                        or Vote.required_votes() <= 1:
-                    await self._do_skip(
-                        ctx=ctx,
-                        extra_data=tracks)
-                elif await is_trusted(ctx=ctx, send_message=False):
-                    vote_msg: str = strings.get("info_vote_skip").format(
-                        skip_count,
-                        ctx.message.author.mention)
-                    vote: Vote = Vote(
-                        vote_type=Vote.VOTE_SKIP,
-                        allow_no=False,
-                        extra_data=tracks,
-                        end_func=self._do_skip)
-                    await Vote.start_vote(
-                        ctx=ctx,
-                        vote=vote,
-                        start_msg=vote_msg)
-                else:
-                    msg = strings.get("error_privileges_other").format(
-                        ctx.guild.get_role(config.ROLE_TRUSTED).mention,
-                        ctx.command)
-            if msg:
-                await ctx.reply(content=msg)
+                msg = strings.get("error_privileges_other").format(
+                    ctx.guild.get_role(config.ROLE_TRUSTED).mention,
+                    ctx.command)
+        if msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name="delete", aliases=["d"])
     @commands.check(is_default)
@@ -613,34 +617,34 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
             raise commands.errors.BadArgument(self.ERROR_BAD_PARAMS.format(index))
 
         msg: Optional[str] = None
-        async with ctx.typing():
-            if jukebox.is_empty():
-                msg = get_empty_queue_msg()
-            elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
-                    or Vote.required_votes() <= 1:
-                # For track-owner and admin calls, wipe the queue immediately
-                await self._do_delete(
-                    ctx=ctx,
-                    extra_data=index)
-            elif await is_trusted(ctx=ctx, send_message=False):
-                # Start a vote to wipe the target track
-                vote_msg: str = strings.get("info_vote_delete").format(
-                    track.title,
-                    ctx.message.author.mention,
-                    track.added_by.mention)
-                vote: Vote = Vote(
-                        vote_type=Vote.VOTE_DELETE,
-                        allow_no=False,
-                        extra_data=index,
-                        end_func=self._do_delete)
-                await Vote.start_vote(
-                    ctx=ctx,
-                    vote=vote,
-                    start_msg=vote_msg)
-            else:
-                msg = strings.get("error_privileges_other").format(
-                    ctx.guild.get_role(config.ROLE_TRUSTED).mention,
-                    ctx.command)
+        await ctx.typing()
+        if jukebox.is_empty():
+            msg = get_empty_queue_msg()
+        elif track.added_by.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
+                or Vote.required_votes() <= 1:
+            # For track-owner and admin calls, wipe the queue immediately
+            await self._do_delete(
+                ctx=ctx,
+                extra_data=index)
+        elif await is_trusted(ctx=ctx, send_message=False):
+            # Start a vote to wipe the target track
+            vote_msg: str = strings.get("info_vote_delete").format(
+                track.title,
+                ctx.message.author.mention,
+                track.added_by.mention)
+            vote: Vote = Vote(
+                    vote_type=Vote.VOTE_DELETE,
+                    allow_no=False,
+                    extra_data=index,
+                    end_func=self._do_delete)
+            await Vote.start_vote(
+                ctx=ctx,
+                vote=vote,
+                start_msg=vote_msg)
+        else:
+            msg = strings.get("error_privileges_other").format(
+                ctx.guild.get_role(config.ROLE_TRUSTED).mention,
+                ctx.command)
         if msg:
             await ctx.reply(content=msg)
 
@@ -651,24 +655,24 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Shuffles the queue in-place, stopping the currently-playing track and restarting with the new current track.
         """
-        async with ctx.typing():
-            msg: str
-            queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
-            if not any(queue):
-                # Shuffling an empty queue does nothing
-                msg = get_empty_queue_msg()
-            elif len(queue) == 1:
-                # Shuffling a single track also does nothing
-                msg = strings.get("jukebox_shuffled_one").format(
-                    strings.emoji_refresh)
-            else:
-                # Shuffling a populated queue reorders the tracks and restarts the new currently-playing track
-                shuffle_count: int = jukebox.shuffle(user_id=queue[0].added_by.id)
-                msg = strings.get("jukebox_shuffled").format(
-                    queue[0].title,
-                    shuffle_count,
-                    strings.emoji_shuffle)
-            await ctx.reply(content=msg)
+        await ctx.typing()
+        msg: str
+        queue: List[JukeboxItem] = jukebox.get_queue(ctx.author.id)
+        if not any(queue):
+            # Shuffling an empty queue does nothing
+            msg = get_empty_queue_msg()
+        elif len(queue) == 1:
+            # Shuffling a single track also does nothing
+            msg = strings.get("jukebox_shuffled_one").format(
+                strings.emoji_refresh)
+        else:
+            # Shuffling a populated queue reorders the tracks and restarts the new currently-playing track
+            shuffle_count: int = jukebox.shuffle(user_id=queue[0].added_by.id)
+            msg = strings.get("jukebox_shuffled").format(
+                queue[0].title,
+                shuffle_count,
+                strings.emoji_shuffle)
+        await ctx.reply(content=msg)
 
     @commands.command(name="bump", aliases=["b"])
     @commands.check(is_default)
@@ -678,39 +682,41 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         Bumps a track up to the head of the queue.
         """
         msg: Optional[str] = None
-        async with ctx.typing():
-            is_implicit: bool = index != -1
-            queue: List[JukeboxItem] = jukebox.get_queue(user_id=ctx.author.id)
-            index = index if index > 0 else len(queue) if queue else 0  # Use track at end of queue if index not given
-            current: JukeboxItem = jukebox.current_track()  # Current track is ignored for bumping
-            track: JukeboxItem = jukebox.get_item_by_index(index=index - 1)  # Reduce given index for 0-indexing
-            is_valid_user = track.added_by.id == ctx.author.id \
-                or (await is_admin(ctx=ctx, send_message=False) and not is_implicit)
-            if jukebox.is_empty():
-                # Ignore if no tracks are in the queue
-                msg = get_empty_queue_msg()
-            elif not track:
-                # Ignore if no track was at the given index
-                msg = strings.get("error_bump_not_found")
-            elif not is_valid_user:
-                # Ignore tracks added by other users, and prevent admins from bumping others implicitly
-                msg = strings.get("error_bump_user").format(
-                    track.title,
-                    track.added_by.mention,
-                    index)
-            elif (current and track and current is track) \
-                    or (current and queue and len(queue) > 1 and current in queue and queue[1] is track) \
-                    or (queue and any(queue) and queue[0] is track):
-                # Ignore attempts to bump the currently-playing track or tracks at the head of the queue
-                msg = strings.get("error_bump_current_at_end" if is_implicit else "error_bump_current")
-            else:
-                # Bump the track
-                jukebox.bump(item=track)
-                msg = strings.get("jukebox_bump").format(
-                    strings.emoji_bump,
-                    track.title,
-                    format_duration(sec=track.duration, is_playlist=False),
-                    jukebox.get_index_of_item(item=track) + 1)  # Increase result index for 1-indexing
+
+        await ctx.typing()
+
+        is_implicit: bool = index != -1
+        queue: List[JukeboxItem] = jukebox.get_queue(user_id=ctx.author.id)
+        index = index if index > 0 else len(queue) if queue else 0  # Use track at end of queue if index not given
+        current: JukeboxItem = jukebox.current_track()  # Current track is ignored for bumping
+        track: JukeboxItem = jukebox.get_item_by_index(index=index - 1)  # Reduce given index for 0-indexing
+        is_valid_user = track.added_by.id == ctx.author.id \
+            or (await is_admin(ctx=ctx, send_message=False) and not is_implicit)
+        if jukebox.is_empty():
+            # Ignore if no tracks are in the queue
+            msg = get_empty_queue_msg()
+        elif not track:
+            # Ignore if no track was at the given index
+            msg = strings.get("error_bump_not_found")
+        elif not is_valid_user:
+            # Ignore tracks added by other users, and prevent admins from bumping others implicitly
+            msg = strings.get("error_bump_user").format(
+                track.title,
+                track.added_by.mention,
+                index)
+        elif (current and track and current is track) \
+                or (current and queue and len(queue) > 1 and current in queue and queue[1] is track) \
+                or (queue and any(queue) and queue[0] is track):
+            # Ignore attempts to bump the currently-playing track or tracks at the head of the queue
+            msg = strings.get("error_bump_current_at_end" if is_implicit else "error_bump_current")
+        else:
+            # Bump the track
+            jukebox.bump(item=track)
+            msg = strings.get("jukebox_bump").format(
+                strings.emoji_bump,
+                track.title,
+                format_duration(sec=track.duration, is_playlist=False),
+                jukebox.get_index_of_item(item=track) + 1)  # Increase result index for 1-indexing
         if msg:
             await ctx.reply(content=msg)
 
@@ -723,55 +729,57 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         :param query: A generic search query for users by name or ID, defaults to the command user.
         """
         msg: Optional[str] = None
-        async with ctx.typing():
-            try:
-                # Accept users by fuzzy query
-                if not query:
-                    query = ctx.author.id
-                user: discord.User = await commands.UserConverter().convert(
+
+        await ctx.typing()
+
+        try:
+            # Accept users by fuzzy query
+            if not query:
+                query = ctx.author.id
+            user: discord.User = await commands.UserConverter().convert(
+                ctx=ctx,
+                argument=str(query))
+            # Wipe all tracks from a user in the given queue
+            queue: List[JukeboxItem] = jukebox.get_queue(user_id=user.id)
+            if not any(queue):
+                msg = get_empty_queue_msg()
+            # For multiqueue, we can assume all tracks in a user's queue are their own
+            tracks: List[JukeboxItem] = [track for track in queue if track.added_by.id == user.id] \
+                if not config.PLAYLIST_MULTIQUEUE \
+                else [*queue]  # Use a copy of the tracks to avoid issues when removing
+            if not any(tracks):
+                # Ignore calls to wipe an empty queue
+                msg = strings.get("info_wipe_failure")
+            elif user.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
+                    or all(track.added_by.id == ctx.author.id for track in tracks) \
+                    or Vote.required_votes() <= 1:
+                # For queue-owner and admin calls, wipe the queue immediately
+                await self._do_wipe(
                     ctx=ctx,
-                    argument=str(query))
-                # Wipe all tracks from a user in the given queue
-                queue: List[JukeboxItem] = jukebox.get_queue(user_id=user.id)
-                if not any(queue):
-                    msg = get_empty_queue_msg()
-                # For multiqueue, we can assume all tracks in a user's queue are their own
-                tracks: List[JukeboxItem] = [track for track in queue if track.added_by.id == user.id] \
-                    if not config.PLAYLIST_MULTIQUEUE \
-                    else [*queue]  # Use a copy of the tracks to avoid issues when removing
-                if not any(tracks):
-                    # Ignore calls to wipe an empty queue
-                    msg = strings.get("info_wipe_failure")
-                elif user.id == ctx.author.id or await is_admin(ctx=ctx, send_message=False) \
-                        or all(track.added_by.id == ctx.author.id for track in tracks) \
-                        or Vote.required_votes() <= 1:
-                    # For queue-owner and admin calls, wipe the queue immediately
-                    await self._do_wipe(
-                        ctx=ctx,
-                        extra_data=tracks)
-                elif await is_trusted(ctx=ctx, send_message=False):
-                    # For non-queue-owner calls, start a vote to wipe the target user's queue
-                    vote_msg: str = strings.get("info_vote_wipe").format(
-                        len(tracks),
-                        ctx.message.author.mention,
-                        tracks[0].added_by.mention)
-                    vote: Vote = Vote(
-                        vote_type=Vote.VOTE_WIPE,
-                        allow_no=False,
-                        extra_data=tracks,
-                        end_func=self._do_wipe)
-                    await Vote.start_vote(
-                        ctx=ctx,
-                        vote=vote,
-                        start_msg=vote_msg)
-                else:
-                    msg = strings.get("error_privileges_other").format(
-                        ctx.guild.get_role(config.ROLE_TRUSTED).mention,
-                        ctx.command)
-            except commands.UserNotFound:
-                msg = strings.get("error_user_not_found").format(query)
-            if msg:
-                await ctx.reply(content=msg)
+                    extra_data=tracks)
+            elif await is_trusted(ctx=ctx, send_message=False):
+                # For non-queue-owner calls, start a vote to wipe the target user's queue
+                vote_msg: str = strings.get("info_vote_wipe").format(
+                    len(tracks),
+                    ctx.message.author.mention,
+                    tracks[0].added_by.mention)
+                vote: Vote = Vote(
+                    vote_type=Vote.VOTE_WIPE,
+                    allow_no=False,
+                    extra_data=tracks,
+                    end_func=self._do_wipe)
+                await Vote.start_vote(
+                    ctx=ctx,
+                    vote=vote,
+                    start_msg=vote_msg)
+            else:
+                msg = strings.get("error_privileges_other").format(
+                    ctx.guild.get_role(config.ROLE_TRUSTED).mention,
+                    ctx.command)
+        except commands.UserNotFound:
+            msg = strings.get("error_user_not_found").format(query)
+        if msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name="queue", aliases=["q"])
     @commands.check(is_default)
@@ -781,75 +789,76 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         :param ctx:
         :param page_num: Page number to print from paginated queue.
         """
-        async with ctx.typing():
-            embed: discord.Embed
-            if jukebox.is_empty():
-                embed = get_empty_queue_embed(guild=ctx.guild)
-            else:
-                queue_length: int = jukebox.num_tracks()
-                queue_duration: str = format_duration(sec=sum([track.duration for track in jukebox.get_all()]), is_playlist=True)
+        await ctx.typing()
 
-                # Pagination is bounded to length of the playlist
-                pagination_count: int = 10
-                page_max: int = ceil(queue_length / pagination_count)
-                page_num = int(page_num) if str.isdigit(page_num) else 1
-                if page_num * pagination_count > queue_length:
-                    page_num = page_max
-                if page_num < 1:
-                    page_num = 1
-                page_num -= 1
+        embed: discord.Embed
+        if jukebox.is_empty():
+            embed = get_empty_queue_embed(guild=ctx.guild)
+        else:
+            queue_length: int = jukebox.num_tracks()
+            queue_duration: str = format_duration(sec=sum([track.duration for track in jukebox.get_all()]), is_playlist=True)
 
-                # Print playlist by elements for the selected (or default) page
-                msg_lines: List[str] = []
-                current: JukeboxItem = jukebox.current_track()
+            # Pagination is bounded to length of the playlist
+            pagination_count: int = 10
+            page_max: int = ceil(queue_length / pagination_count)
+            page_num = int(page_num) if str.isdigit(page_num) else 1
+            if page_num * pagination_count > queue_length:
+                page_num = page_max
+            if page_num < 1:
+                page_num = 1
+            page_num -= 1
 
-                # aggregated tracks
-                index_start: int = pagination_count * page_num
-                index_end: int = index_start + pagination_count
-                tracks: List[JukeboxItem] = jukebox.get_range(index_start=index_start, index_end=index_end)
-                track_msgs: List[str] = [strings.get("jukebox_queue_item").format(
-                    index_start + i + 1,
-                    format_duration(sec=track.duration),
-                    track.added_by.mention,
-                    track.title)
-                        for i, track in enumerate(iterable=tracks)]
+            # Print playlist by elements for the selected (or default) page
+            msg_lines: List[str] = []
+            current: JukeboxItem = jukebox.current_track()
 
-                # currently-playing track
-                title: str = strings.get("jukebox_title").format(
-                    strings.get("status_playing").format(current.title, strings.emoji_play)
-                    if jukebox.voice_client and jukebox.voice_client.is_playing()
-                    else strings.get("status_paused").format(current.title, strings.emoji_pause))
+            # aggregated tracks
+            index_start: int = pagination_count * page_num
+            index_end: int = index_start + pagination_count
+            tracks: List[JukeboxItem] = jukebox.get_range(index_start=index_start, index_end=index_end)
+            track_msgs: List[str] = [strings.get("jukebox_queue_item").format(
+                index_start + i + 1,
+                format_duration(sec=track.duration),
+                track.added_by.mention,
+                track.title)
+                    for i, track in enumerate(iterable=tracks)]
 
-                # all other queued tracks on the current page
-                msg_lines.append("\n".join(iter(track_msgs)))
+            # currently-playing track
+            title: str = strings.get("jukebox_title").format(
+                strings.get("status_playing").format(current.title, strings.emoji_play)
+                if jukebox.voice_client and jukebox.voice_client.is_playing()
+                else strings.get("status_paused").format(current.title, strings.emoji_pause))
 
-                # queue loop status
-                if await is_looping_enabled(ctx=ctx):
-                    msg_lines.append("\n" + strings.get("status_looping").format(
-                        strings.get("on") if jukebox.is_looping else strings.get("off"),
-                        strings.emoji_loop))
+            # all other queued tracks on the current page
+            msg_lines.append("\n".join(iter(track_msgs)))
 
-                # queue summary
-                footer: str = strings.get("jukebox_queue_footer").format(
-                    queue_length,
-                    queue_duration,
-                    page_num + 1,
-                    page_max)
+            # queue loop status
+            if await is_looping_enabled(ctx=ctx):
+                msg_lines.append("\n" + strings.get("status_looping").format(
+                    strings.get("on") if jukebox.is_looping else strings.get("off"),
+                    strings.emoji_loop))
 
-                emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_jukebox"))
-                embed = discord.Embed(
-                    title=title,
-                    description="\n".join(msg_lines),
-                    colour=get_embed_colour(ctx.guild),
-                    url=current.url
-                    if current
-                    else None)
-                embed \
-                    .set_footer(text=footer) \
-                    .set_thumbnail(url=emoji.url)
+            # queue summary
+            footer: str = strings.get("jukebox_queue_footer").format(
+                queue_length,
+                queue_duration,
+                page_num + 1,
+                page_max)
 
-            if embed:
-                await ctx.reply(embed=embed)
+            emoji: discord.Emoji = utils.get(Commands.bot.emojis, name=strings.get("emoji_id_jukebox"))
+            embed = discord.Embed(
+                title=title,
+                description="\n".join(msg_lines),
+                colour=get_embed_colour(ctx.guild),
+                url=current.url
+                if current
+                else None)
+            embed \
+                .set_footer(text=footer) \
+                .set_thumbnail(url=emoji.url)
+
+        if embed:
+            await ctx.reply(embed=embed)
 
     @commands.command(name="current", aliases=["c"])
     @commands.check(is_default)
@@ -870,10 +879,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
-        async with ctx.typing():
-            msg, embed = await self._do_print_user(ctx=ctx, query=query)
-            if msg or embed:
-                await ctx.reply(content=msg, embed=embed)
+
+        await ctx.typing()
+
+        msg, embed = await self._do_print_user(ctx=ctx, query=query)
+        if msg or embed:
+            await ctx.reply(content=msg, embed=embed)
 
     @commands.command(name="jukebox", aliases=["j"])
     @commands.check(is_admin)
@@ -883,10 +894,12 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         msg: Optional[str] = None
         embed: Optional[discord.Embed] = None
-        async with ctx.typing():
-            msg, embed = await self._do_print_user(ctx=ctx, query=str(Commands.bot.user.id))
-            if msg or embed:
-                await ctx.reply(content=msg, embed=embed)
+
+        await ctx.typing()
+
+        msg, embed = await self._do_print_user(ctx=ctx, query=str(Commands.bot.user.id))
+        if msg or embed:
+            await ctx.reply(content=msg, embed=embed)
 
     @commands.command(name="info", aliases=["i"])
     @commands.check(is_default)
@@ -911,29 +924,30 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         genius: Genius = get_genius()
 
-        async with ctx.typing():
-            # Resolve query
-            query = parse_query(query=query)
-            if not query and jukebox.is_empty():
-                embed = get_empty_queue_embed(guild=ctx.guild)
-            else:
-                # Generate response
-                response: dict = genius.search_songs(search_term=query)
-                entries: List[Dict[str, str]] = [hit.get("result") for hit in response.get("hits", [])]
-                if not any(entries):
-                    msg = strings.get("error_lyrics_not_found").format(query)
-                else:
-                    title: str = strings.get("jukebox_found_lyrics").format(ctx.author.display_name)
-                    embed = discord.Embed(
-                        colour=get_embed_colour(ctx.guild))
-                    embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
+        await ctx.typing()
 
-            if embed:
-                view: Commands.AmbiguousLyricsView = Commands.AmbiguousLyricsView(entries=entries, added_by=ctx.author)
-                await ctx.reply(embed=embed, view=view)
-                pass
-            elif msg:
-                await ctx.reply(content=msg)
+        # Resolve query
+        query = parse_query(query=query)
+        if not query and jukebox.is_empty():
+            embed = get_empty_queue_embed(guild=ctx.guild)
+        else:
+            # Generate response
+            response: dict = genius.search_songs(search_term=query)
+            entries: List[Dict[str, str]] = [hit.get("result") for hit in response.get("hits", [])]
+            if not any(entries):
+                msg = strings.get("error_lyrics_not_found").format(query)
+            else:
+                title: str = strings.get("jukebox_found_lyrics").format(ctx.author.display_name)
+                embed = discord.Embed(
+                    colour=get_embed_colour(ctx.guild))
+                embed.set_author(name=title, icon_url=ctx.author.display_avatar.url)
+
+        if embed:
+            view: Commands.AmbiguousLyricsView = Commands.AmbiguousLyricsView(entries=entries, added_by=ctx.author)
+            await ctx.reply(embed=embed, view=view)
+            pass
+        elif msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name="lyrics", aliases=["l"])
     @commands.check(is_trusted)
@@ -947,22 +961,23 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         embed: Optional[discord.Embed] = None
         genius: Genius = get_genius()
 
-        async with ctx.typing():
-            # Resolve query
-            query = parse_query(query=query)
-            if not query and jukebox.is_empty():
-                embed = get_empty_queue_embed(guild=ctx.guild)
+        await ctx.typing()
+
+        # Resolve query
+        query = parse_query(query=query)
+        if not query and jukebox.is_empty():
+            embed = get_empty_queue_embed(guild=ctx.guild)
+        else:
+            # Generate response
+            song: Optional[Song] = genius.search_song(title=query)
+            if not song:
+                msg = strings.get("error_lyrics_not_found").format(query)
             else:
-                # Generate response
-                song: Optional[Song] = genius.search_song(title=query)
-                if not song:
-                    msg = strings.get("error_lyrics_not_found").format(query)
-                else:
-                    embed = get_lyrics_embed(guild=ctx.guild, song=song)
-            if msg or embed:
-                await ctx.reply(
-                    content=msg,
-                    embed=embed)
+                embed = get_lyrics_embed(guild=ctx.guild, song=song)
+        if msg or embed:
+            await ctx.reply(
+                content=msg,
+                embed=embed)
 
     @commands.command(name="pause", aliases=["p"])
     @commands.check(is_trusted)
@@ -972,24 +987,25 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Pauses or resumes the currently-playing track with no change to the tracking.
         """
-        async with ctx.typing():
-            current: JukeboxItem = jukebox.current_track()
-            if not current:
-                # Empty jukebox queue does nothing when paused
-                pass
-            elif jukebox.voice_client and jukebox.voice_client.is_playing():
-                # Pause the audio stream if playing
-                jukebox.pause()
-            else:
-                # Playing a populated queue will continue from the current track
-                await ensure_voice()
-                if jukebox.voice_client.is_paused():
-                    jukebox.resume()
-                else:
-                    jukebox.play()
+        await ctx.typing()
 
-            embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
-            await ctx.reply(embed=embed)
+        current: JukeboxItem = jukebox.current_track()
+        if not current:
+            # Empty jukebox queue does nothing when paused
+            pass
+        elif jukebox.voice_client and jukebox.voice_client.is_playing():
+            # Pause the audio stream if playing
+            jukebox.pause()
+        else:
+            # Playing a populated queue will continue from the current track
+            await ensure_voice()
+            if jukebox.voice_client.is_paused():
+                jukebox.resume()
+            else:
+                jukebox.play()
+
+        embed: discord.Embed = get_current_track_embed(guild=ctx.guild, show_tracking=True)
+        await ctx.reply(embed=embed)
 
         # Update rich presence
         await self._update_presence()
@@ -1002,6 +1018,8 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         """
         Toggles global looping on the queue, re-appending the currently-played track when removed if enabled.
         """
+        await ctx.typing()
+
         jukebox.loop()
         msg: str = strings.get("status_looping").format(
             strings.get("on")
