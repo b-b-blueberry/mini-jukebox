@@ -792,7 +792,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
                 # Pagination is bounded to length of the playlist
                 pagination_count: int = 10
                 page_max: int = ceil(queue_length / pagination_count)
-                page_num = int(page_num)
+                page_num = int(page_num) if str.isdigit(page_num) else 1
                 if page_num * pagination_count > queue_length:
                     page_num = page_max
                 if page_num < 1:
