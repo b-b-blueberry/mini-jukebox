@@ -35,7 +35,7 @@ from io import StringIO
 import random
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, UTC
 from importlib import reload
 from importlib import metadata
 from math import ceil, floor
@@ -344,7 +344,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
     """Whether commands are blocked for non-admin users."""
     listening_users: Dict[int, int] = {}
     """Map of users in the voice channel on track playback started, and the track timestamp they joined at."""
-    start_time: datetime = datetime.utcnow()
+    start_time: datetime = datetime.now(UTC)
     """Datetime instance recording start time for commands cog."""
 
     # Constants
@@ -1266,7 +1266,7 @@ class Commands(commands.Cog, name=config.COG_COMMANDS):
         msg: str
         embed: discord.Embed = discord.Embed(colour=get_embed_colour(ctx.guild))
 
-        delta_uptime = datetime.utcnow() - Commands.bot.start_time
+        delta_uptime = datetime.now(UTC) - Commands.bot.start_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
@@ -1917,7 +1917,7 @@ def format_duration(sec: int, is_playlist: bool = False) -> str:
     """
     Formats a duration in seconds for playlists and playlist items.
     """
-    return datetime.utcfromtimestamp(sec) \
+    return datetime.fromtimestamp(sec, UTC) \
         .strftime(strings.get("datetime_format_playlist")
                   if is_playlist
                   else strings.get("datetime_format_track"))
