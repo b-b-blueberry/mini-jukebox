@@ -7,7 +7,9 @@ RUN apk add \
     opus-dev \
     sqlite
 
-ADD requirements.txt /jukebox/requirements.txt
-RUN pip3 install -r /jukebox/requirements.txt
-
-CMD ["python3", "-u", "/jukebox/main.py"]
+RUN mkdir /jukebox
+ADD requirements.txt /jukebox
+ADD src /jukebox
+WORKDIR /jukebox
+RUN pip3 install -r requirements.txt
+CMD ["python", "-u", "main.py"]
