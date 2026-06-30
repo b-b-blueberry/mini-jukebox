@@ -178,7 +178,7 @@ class MusicBot(Bot):
                 reaction = strings.emoji_error
             elif isinstance(error, commands.errors.CommandNotFound):
                 # Suppress failed command calls
-                reaction = strings.emoji_question
+                reaction = None
             elif isinstance(error, commands.errors.BadArgument):
                 # Suppress failed command parameters
                 reaction = strings.emoji_error
