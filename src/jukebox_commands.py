@@ -1846,9 +1846,6 @@ def get_lyrics_embed(guild: discord.Guild, song: Song) -> discord.Embed:
     text: str = song.lyrics
     url: str = song.url
 
-    # Crop useless artefacts out of raw text
-    text = re.sub(r"You might also like|\d*Embed", "", text.split("Lyrics", 1)[1])
-
     # Crop text to fit character limit
     limit_chars: int = config.LYRICS_CHARACTER_LIMIT
     limit_lines: int = config.LYRICS_LINE_LIMIT
